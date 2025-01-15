@@ -13,6 +13,7 @@ import Layout
 
 type alias Model =
     { focusKeyBr : Bool
+    , isShiftPressed : Bool
     , keys : Array (Array Key)
     }
 
@@ -24,6 +25,7 @@ type KeyStatus
 
 type alias Key =
     { view : String
+    , altView : String
     , code : String
     , status : KeyStatus
     , form : KeyType
@@ -62,22 +64,22 @@ specialKeys =
         ]
 
 
-toKeyT : ( String, String ) -> Key
-toKeyT ( v, c ) =
+toKey : ( String, String, String ) -> Key
+toKey ( v, a, c ) =
     specialKeys
         |> Dict.get c
-        |> Maybe.andThen (\s -> Just (Key v c Released <| Special { extraStyle = s }))
-        |> Maybe.withDefault (Key v c Released Normal)
+        |> Maybe.andThen (\s -> Just (Key v a c Released <| Special { extraStyle = s }))
+        |> Maybe.withDefault (Key v a c Released Normal)
 
 
-createArray : List ( String, String ) -> Array Key
+createArray : List ( String, String, String ) -> Array Key
 createArray keyList =
     keyList
-        |> List.map toKeyT
+        |> List.map toKey
         |> Array.fromList
 
 
-layoutToArray : List (List ( String, String )) -> Array (Array Key)
+layoutToArray : List (List ( String, String, String )) -> Array (Array Key)
 layoutToArray layout =
     layout
         |> List.map createArray
@@ -97,15 +99,29 @@ update msg model =
             let
                 updated =
                     updateKeyStatus Pressed key model.keys
+
+                shiftDown =
+                    if key == "ShiftLeft" || key == "ShiftRight" then
+                        True
+
+                    else
+                        model.isShiftPressed
             in
-            ( { model | keys = updated }, Cmd.none )
+            ( { model | keys = updated, isShiftPressed = shiftDown }, Cmd.none )
 
         KeyUp key ->
             let
                 updated =
                     updateKeyStatus Released key model.keys
+
+                shiftUp =
+                    if key == "ShiftLeft" || key == "ShiftRight" then
+                        False
+
+                    else
+                        model.isShiftPressed
             in
-            ( { model | keys = updated }, Cmd.none )
+            ( { model | keys = updated, isShiftPressed = shiftUp }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -132,7 +148,7 @@ view model =
     main_
         [ class "text-white flex items-center justify-center h-screen"
         ]
-        [ viewKeyBoard model.keys model.focusKeyBr ]
+        [ viewKeyBoard model ]
 
 
 keyDown : msg -> Html.Attribute msg
@@ -150,11 +166,11 @@ alwaysPreventDefault msg =
     ( msg, True )
 
 
-viewKeyBoard : Array (Array Key) -> Bool -> Html Msg
-viewKeyBoard keys foc =
+viewKeyBoard : Model -> Html Msg
+viewKeyBoard model =
     let
         isfocused =
-            if foc then
+            if model.focusKeyBr then
                 "border-4 border-gray-600"
 
             else
@@ -168,23 +184,23 @@ viewKeyBoard keys foc =
         , keyDown NoOp
         , keyUp NoOp
         ]
-        (keys
-            |> Array.map viewRow
+        (model.keys
+            |> Array.map (viewRow model.isShiftPressed)
             |> Array.toList
         )
 
 
-viewRow : Array Key -> Html msg
-viewRow row =
+viewRow : Bool -> Array Key -> Html msg
+viewRow shiftOn row =
     div [ class "flex justify-center gap-1 py-1" ]
         (row
-            |> Array.map viewKey
+            |> Array.map (viewKey shiftOn)
             |> Array.toList
         )
 
 
-viewKey : Key -> Html msg
-viewKey key =
+viewKey : Bool -> Key -> Html msg
+viewKey shiftOn key =
     let
         isPressed =
             case key.status of
@@ -201,11 +217,18 @@ viewKey key =
 
                 Special f ->
                     f.extraStyle
+
+        keyView =
+            if shiftOn then
+                key.altView
+
+            else
+                key.view
     in
     div
         [ class <| "px-4 py-2 text-white text-center rounded shadow " ++ isPressed ++ " " ++ keyWidth
         ]
-        [ text key.view ]
+        [ text keyView ]
 
 
 subscriptions : Model -> Sub Msg
@@ -230,7 +253,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     let
         model =
-            Model False <| layoutToArray Layout.qwerty
+            Model False False <| layoutToArray Layout.silPowerG
     in
     ( model, Cmd.none )
 
