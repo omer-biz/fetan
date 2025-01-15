@@ -153,17 +153,14 @@ view model =
 
 keyDown : msg -> Html.Attribute msg
 keyDown msg =
-    preventDefaultOn "keydown" (Decode.map alwaysPreventDefault (Decode.succeed msg))
+    preventDefaultOn "keydown" <|
+        Decode.map (\a -> ( a, True )) (Decode.succeed msg)
 
 
 keyUp : msg -> Html.Attribute msg
 keyUp msg =
-    preventDefaultOn "keyup" (Decode.map alwaysPreventDefault (Decode.succeed msg))
-
-
-alwaysPreventDefault : msg -> ( msg, Bool )
-alwaysPreventDefault msg =
-    ( msg, True )
+    preventDefaultOn "keyup" <|
+        Decode.map (\a -> ( a, True )) (Decode.succeed msg)
 
 
 viewKeyBoard : Model -> Html Msg
@@ -183,8 +180,7 @@ viewKeyBoard model =
         , tabindex 0 -- Helps make a div focusable and blurable.
         , keyDown NoOp
         , keyUp NoOp
-        ]
-        (model.keys
+        ] (model.keys
             |> Array.map (viewRow model.isShiftPressed)
             |> Array.toList
         )
@@ -226,8 +222,7 @@ viewKey shiftOn key =
                 key.view
     in
     div
-        [ class <| "px-4 py-2 text-white text-center rounded shadow " ++ isPressed ++ " " ++ keyWidth
-        ]
+        [ class <| "px-4 py-2 text-white text-center rounded shadow font-semibold " ++ isPressed ++ " " ++ keyWidth ]
         [ text keyView ]
 
 

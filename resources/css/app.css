@@ -1,3 +1,13 @@
+@font-face {
+    font-family: "NotoSansEthiopic";
+    font-weight: normal;
+    src: url("../fonts/NotoSansEthiopic-Regular.ttf") format("truetype");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+    font-family: "NotoSansEthiopic", sans-serif;
+}
