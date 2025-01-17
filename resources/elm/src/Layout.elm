@@ -1,4 +1,4 @@
-module Layout exposing (qwerty, silPowerG)
+module Layout exposing (isVowel, qwerty, silPowerG)
 
 
 qwerty : List (List ( String, String, String ))
@@ -94,7 +94,7 @@ silPowerG =
       , ( "እ", "ዕ", "KeyE" )
       , ( "ረ", " ", "KeyR" )
       , ( "ተ", "ጠ", "KeyT" )
-      , ( " ", "የ", "KeyY" )
+      , ( "ኤ", "የ", "KeyY" )
       , ( "ኡ", "ዑ", "KeyU" )
       , ( "ኢ", "ዒ", "KeyI" )
       , ( "ኦ", "ዖ", "KeyO" )
@@ -132,8 +132,19 @@ silPowerG =
       ]
     , [ ( "CTRL", "CTRL", "ControlLeft" )
       , ( "ALT", "ALT", "AltLeft" )
-      , ( " ", " ", "Space" )
+      , ( "␣", "␣", "Space" )
       , ( "ALT", "ALT", "AltRight" )
       , ( "CTRL", "CTRL", "ControlRight" )
       ]
     ]
+
+
+
+
+isVowel : Char -> Bool
+isVowel c =
+    let
+        code =
+            Char.toCode c
+    in
+    code >= 0x12A1 && code <= 0x12A7
