@@ -3,12 +3,14 @@ module Main exposing (main)
 import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
+import Dictation as DictGen
 import Html exposing (Html, div, main_, p, text)
 import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode exposing (dict)
 import Layout
+import Random
 
 
 type alias Model =
@@ -64,6 +66,7 @@ type Msg
     | KeyUp String
     | FocusKeyBr
     | BlurKeyBr
+    | NewDict String
 
 
 stringToDictation : String -> Dictation
@@ -216,6 +219,9 @@ update msg model =
               }
             , Cmd.none
             )
+
+        NewDict dict ->
+            ( { model | dictation = stringToDictation dict }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
@@ -374,8 +380,6 @@ viewKey shiftOn key =
                 Pressed ->
                     "bg-lime-500"
 
-
-
         keyWidth =
             case key.form of
                 Normal ->
@@ -390,7 +394,6 @@ viewKey shiftOn key =
 
             else
                 key.view
-
     in
     div
         [ class <| "px-4 py-2 text-white text-center rounded shadow font-semibold " ++ isPressed ++ " " ++ keyWidth ]
@@ -421,7 +424,7 @@ init _ =
         model =
             Model False False (layoutToList Layout.silPowerG) (stringToDictation "ኡመር ቧጂላንፎ ለጀከ ፐተቀወ ዘአቸ ቨ በነመ ሸሐጠ የሠጨኘዠ")
     in
-    ( model, Cmd.none )
+    ( model, Random.generate NewDict <| DictGen.genOne 20 )
 
 
 main : Program () Model Msg
