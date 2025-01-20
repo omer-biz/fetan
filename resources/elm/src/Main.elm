@@ -214,13 +214,24 @@ update msg model =
 
                         _ ->
                             model.dictation
+
+                genNewDict =
+                    let
+                        ud =
+                            updatedDict
+                    in
+                    if ud.done == True then
+                        Random.generate NewDict <| DictGen.genOne 15
+
+                    else
+                        Cmd.none
             in
             ( { model
                 | keys = updated
                 , isShiftPressed = shiftUp
                 , dictation = updatedDict
               }
-            , Cmd.none
+            , genNewDict
             )
 
         NewDict dict ->
@@ -473,7 +484,7 @@ init _ =
         model =
             Model False False (layoutToList Layout.silPowerG) (stringToDictation "")
     in
-    ( model, Random.generate NewDict <| DictGen.genAll 20 )
+    ( model, Random.generate NewDict <| DictGen.genAll 15 )
 
 
 main : Program () Model Msg
