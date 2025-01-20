@@ -14,11 +14,14 @@ import Random
 
 
 type alias Model =
-    { focusKeyBr : Bool
-    , isShiftPressed : Bool
-    , keys : List (List Key)
+    { keyboard : Keyboard
     , dictation : Dictation
+    , metrics : Metrics
     }
+
+
+type alias Metrics =
+    {}
 
 
 type alias Dictation =
@@ -40,6 +43,13 @@ type alias Letter =
     { letter : Char
     , state : LetterState
     , wasWrong : Bool
+    }
+
+
+type alias Keyboard =
+    { focusKeyBr : Bool
+    , isShiftPressed : Bool
+    , keys : List (List Key)
     }
 
 
@@ -147,28 +157,35 @@ find predicate list =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        keyboard =
+            model.keyboard
+    in
     case msg of
         FocusKeyBr ->
-            ( { model | focusKeyBr = True }, Cmd.none )
+            ( { model | keyboard = { keyboard | focusKeyBr = True } }, Cmd.none )
 
         BlurKeyBr ->
-            ( { model | focusKeyBr = False }, Cmd.none )
+            ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown key ->
             let
                 updatedKeys =
-                    updateKeyStatus Pressed key model.keys
+                    updateKeyStatus Pressed key model.keyboard.keys
 
                 shiftDown =
                     if key == "ShiftLeft" || key == "ShiftRight" then
                         True
 
                     else
-                        model.isShiftPressed
+                        model.keyboard.isShiftPressed
             in
             ( { model
-                | keys = updatedKeys
-                , isShiftPressed = shiftDown
+                | keyboard =
+                    { keyboard
+                        | keys = updatedKeys
+                        , isShiftPressed = shiftDown
+                    }
               }
             , Cmd.none
             )
@@ -176,28 +193,28 @@ update msg model =
         KeyUp key ->
             let
                 updated =
-                    updateKeyStatus Released key model.keys
+                    updateKeyStatus Released key keyboard.keys
 
                 shiftUp =
                     if key == "ShiftLeft" || key == "ShiftRight" then
                         False
 
                     else
-                        model.isShiftPressed
+                        keyboard.isShiftPressed
 
                 altViewOrView : Key -> Bool
                 altViewOrView k =
                     k.code == key
 
                 extractLetter k =
-                    if model.isShiftPressed then
+                    if keyboard.isShiftPressed then
                         k.altView
 
                     else
                         k.view
 
                 acctualLetter =
-                    model.keys
+                    keyboard.keys
                         |> List.concat
                         |> find altViewOrView
                         |> Maybe.map extractLetter
@@ -227,8 +244,11 @@ update msg model =
                         Cmd.none
             in
             ( { model
-                | keys = updated
-                , isShiftPressed = shiftUp
+                | keyboard =
+                    { keyboard
+                        | keys = updated
+                        , isShiftPressed = shiftUp
+                    }
                 , dictation = updatedDict
               }
             , genNewDict
@@ -313,8 +333,17 @@ updateKeyStatus s key keys =
 view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
-        [ div [] [ viewDictation model.dictation, viewKeyBoard model ]
+        [ div []
+            [ viewMetrics model.metrics
+            , viewDictation model.dictation
+            , viewKeyBoard model.keyboard
+            ]
         ]
+
+
+viewMetrics : Metrics -> Html Msg
+viewMetrics _ =
+    div [] []
 
 
 viewDictation : Dictation -> Html msg
@@ -361,7 +390,7 @@ viewDictation dict =
     div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
         [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters dict.prev)
         , p [ class <| String.join " " [ "underline inline m-0 p-0", currentKeyStyle ] ]
-            [viewCurrentLetter]
+            [ viewCurrentLetter ]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
         ]
 
@@ -378,11 +407,11 @@ keyUp msg =
         Decode.map (\a -> ( a, True )) (Decode.succeed msg)
 
 
-viewKeyBoard : Model -> Html Msg
-viewKeyBoard model =
+viewKeyBoard : Keyboard -> Html Msg
+viewKeyBoard keyboard =
     let
         isfocused =
-            if model.focusKeyBr == False then
+            if keyboard.focusKeyBr == False then
                 div [ class "absolute inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
                     [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to activate " ] ]
 
@@ -397,8 +426,8 @@ viewKeyBoard model =
         , keyDown NoOp
         , keyUp NoOp
         ]
-        (model.keys
-            |> List.map (viewRow model.isShiftPressed)
+        (keyboard.keys
+            |> List.map (viewRow keyboard.isShiftPressed)
             |> (::) isfocused
         )
 
@@ -445,7 +474,7 @@ viewKey shiftOn key =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.focusKeyBr then
+    if model.keyboard.focusKeyBr then
         Sub.batch
             [ onKeyDown <| Decode.map KeyDown keyDecoder
             , onKeyUp <| Decode.map KeyUp keyDecoder
@@ -464,8 +493,15 @@ keyDecoder =
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
+        keyboard =
+            Keyboard False False (layoutToList Layout.silPowerG)
+
+        metrics =
+            Metrics
+
         model =
-            Model False False (layoutToList Layout.silPowerG) (stringToDictation "")
+            -- TODO: try to store and get the metrics from localStorage
+            Model keyboard (stringToDictation "") metrics
     in
     ( model, Random.generate NewDict <| DictGen.genAll 15 )
 
