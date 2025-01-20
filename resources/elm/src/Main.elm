@@ -34,12 +34,12 @@ type LetterState
     = New
     | Wrong
     | Rolling
-    | RollingW -- stained rolling
 
 
 type alias Letter =
     { letter : Char
     , state : LetterState
+    , wasWrong : Bool
     }
 
 
@@ -75,17 +75,17 @@ stringToDictation : String -> Dictation
 stringToDictation str =
     case String.uncons str of
         Just ( curr, next ) ->
-            Dictation (lettersFromString "") (Letter curr New) (lettersFromString next) Nothing False
+            Dictation (lettersFromString "") (Letter curr New False) (lettersFromString next) Nothing False
 
         Nothing ->
-            Dictation (lettersFromString "?") (Letter '?' New) (lettersFromString "?") Nothing False
+            Dictation (lettersFromString "?") (Letter '?' New False) (lettersFromString "?") Nothing False
 
 
 lettersFromString : String -> List Letter
 lettersFromString str =
     str
         |> String.toList
-        |> List.map (\l -> Letter l New)
+        |> List.map (\l -> Letter l New False)
 
 
 specialKeys : Dict String String
@@ -266,14 +266,7 @@ updateDictState tryKey dict =
             Char.toCode current.letter
 
         wrongAttempt st =
-            { dict | try = Nothing, current = { current | state = st } }
-
-        stateUp oSt =
-            if oSt == New then
-                Rolling
-
-            else
-                RollingW
+            { dict | try = Nothing, current = { current | state = st, wasWrong = True } }
     in
     if tryKey == current.letter then
         toNextChar
@@ -286,7 +279,7 @@ updateDictState tryKey dict =
                     toNextChar
 
                 else
-                    wrongAttempt RollingW
+                    wrongAttempt Wrong
 
             Nothing ->
                 wrongAttempt Wrong
@@ -294,7 +287,7 @@ updateDictState tryKey dict =
     else if (clUnicode - tkUnicode) > 0 && (clUnicode - tkUnicode) <= 7 then
         { dict
             | try = Just tryKey
-            , current = { current | state = stateUp current.state }
+            , current = { current | state = Rolling }
         }
 
     else
@@ -340,37 +333,27 @@ viewDictation dict =
 
         viewLetter lt =
             let
-                styleDot =
-                    if lt.letter == '.' then
-                        " text-4xl font-bold text-gray-300"
+                wasWrong =
+                    if lt.wasWrong then
+                        "text-red-400"
 
                     else
                         ""
-
-                styleState =
-                    case lt.state of
-                        Rolling ->
-                            if lt.letter == dict.current.letter then
-                                "text-yellow-300"
-
-                            else
-                                "text-gray-400"
-
-                        New ->
-                            " "
-
-                        Wrong ->
-                            "text-red-400"
-
-                        RollingW ->
-                            if lt.letter == dict.current.letter then
-                                "text-yellow-300"
-
-                            else
-                                "text-red-400"
             in
-            span [ class <| String.join " " [ styleDot, styleState ] ]
+            span [ class wasWrong ]
                 [ text <| (lt.letter |> String.fromChar |> String.replace " " " · ") ]
+
+        viewCurrentLetter =
+            let
+                wasWrong =
+                    if dict.current.wasWrong && (dict.current.state /= Rolling) then
+                        "text-red-400"
+
+                    else
+                        ""
+            in
+            span [ class wasWrong ]
+                [ text <| (dict.current.letter |> String.fromChar |> String.replace " " " · ") ]
 
         viewLetters lts =
             List.map viewLetter lts
@@ -378,7 +361,7 @@ viewDictation dict =
     div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
         [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters dict.prev)
         , p [ class <| String.join " " [ "underline inline m-0 p-0", currentKeyStyle ] ]
-            [ viewLetter dict.current ]
+            [viewCurrentLetter]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
         ]
 
