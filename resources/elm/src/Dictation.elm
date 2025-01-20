@@ -1,4 +1,4 @@
-module Dictation exposing (genFour, genOne, genThree, genTwo)
+module Dictation exposing (genFour, genOne, genThree, genTwo, genAll)
 
 import Random exposing (Generator)
 
@@ -109,3 +109,10 @@ genThree len =
 genFour : Int -> Generator String
 genFour len =
     genFromList len consonantFour
+
+
+genAll : Int -> Generator String
+genAll len =
+    [ consonantOne, consonantTwo, consonantThree, consonantFour ]
+        |> List.concat
+        |> genFromList len

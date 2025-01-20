@@ -4,7 +4,7 @@ import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
-import Html exposing (Html, div, main_, p, text)
+import Html exposing (Html, div, main_, p, span, text)
 import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
@@ -22,10 +22,11 @@ type alias Model =
 
 
 type alias Dictation =
-    { prev : String
-    , current : CurrentLetter
-    , next : String
+    { prev : List Letter
+    , current : Letter
+    , next : List Letter
     , try : Maybe Char
+    , done : Bool
     }
 
 
@@ -33,9 +34,10 @@ type LetterState
     = New
     | Wrong
     | Rolling
+    | RollingW -- stained rolling
 
 
-type alias CurrentLetter =
+type alias Letter =
     { letter : Char
     , state : LetterState
     }
@@ -71,18 +73,19 @@ type Msg
 
 stringToDictation : String -> Dictation
 stringToDictation str =
-    let
-        s =
-            String.replace " " "␣" str
-    in
-    Nothing
-        |> (case String.uncons s of
-                Just ( curr, next ) ->
-                    Dictation "" (CurrentLetter curr New) next
+    case String.uncons str of
+        Just ( curr, next ) ->
+            Dictation (lettersFromString "") (Letter curr New) (lettersFromString next) Nothing False
 
-                Nothing ->
-                    Dictation "?" (CurrentLetter '?' New) "?"
-           )
+        Nothing ->
+            Dictation (lettersFromString "?") (Letter '?' New) (lettersFromString "?") Nothing False
+
+
+lettersFromString : String -> List Letter
+lettersFromString str =
+    str
+        |> String.toList
+        |> List.map (\l -> Letter l New)
 
 
 specialKeys : Dict String String
@@ -234,19 +237,16 @@ updateDictState tryKey dict =
             dict.current
 
         toNextChar =
-            case String.uncons dict.next of
-                Just ( _, "" ) ->
-                    Debug.todo "end of dictation"
-
-                Just ( newCurr, next ) ->
+            case dict.next of
+                newCurr :: next ->
                     { dict
                         | next = next
-                        , current = { current | letter = newCurr, state = New }
-                        , prev = dict.prev ++ String.fromChar current.letter
+                        , current = newCurr
+                        , prev = dict.prev ++ [ current ]
                     }
 
-                Nothing ->
-                    Debug.todo "empty string"
+                [] ->
+                    { dict | done = True }
 
         tkUnicode =
             Char.toCode tryKey
@@ -254,32 +254,40 @@ updateDictState tryKey dict =
         clUnicode =
             Char.toCode current.letter
 
-        wrongAttempt =
-            { dict | try = Nothing, current = { current | state = Wrong } }
+        wrongAttempt st =
+            { dict | try = Nothing, current = { current | state = st } }
+
+        stateUp oSt =
+            if oSt == New then
+                Rolling
+
+            else
+                RollingW
     in
     if tryKey == current.letter then
         toNextChar
 
     else if tkUnicode >= 0x12A1 && tkUnicode <= 0x12A7 then
+        -- if it's a vowel
         case dict.try of
             Just incomplete ->
                 if Char.toCode incomplete + (tkUnicode - 0x12A0) == clUnicode then
                     toNextChar
 
                 else
-                    wrongAttempt
+                    wrongAttempt RollingW
 
             Nothing ->
-                wrongAttempt
+                wrongAttempt Wrong
 
     else if (clUnicode - tkUnicode) > 0 && (clUnicode - tkUnicode) <= 7 then
         { dict
             | try = Just tryKey
-            , current = { current | state = Rolling }
+            , current = { current | state = stateUp current.state }
         }
 
     else
-        wrongAttempt
+        wrongAttempt Wrong
 
 
 updateKeyStatus : KeyStatus -> String -> List (List Key) -> List (List Key)
@@ -301,28 +309,66 @@ updateKeyStatus s key keys =
 view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
-        [ div [] [ viewDication model.dictation, viewKeyBoard model ]
+        [ div [] [ viewDictation model.dictation, viewKeyBoard model ]
         ]
 
 
-viewDication : Dictation -> Html msg
-viewDication dict =
+viewDictation : Dictation -> Html msg
+viewDictation dict =
     let
         currentKeyStyle =
             case dict.current.state of
-                New ->
-                    "bg-gray-300 text-gray-600"
-
                 Rolling ->
-                    "bg-yellow-300 text-yellow-700"
+                    "text-yellow-300"
 
                 Wrong ->
-                    "bg-red-300 text-red-700"
+                    "text-red-400"
+
+                _ ->
+                    ""
+
+        viewLetter lt =
+            let
+                styleDot =
+                    if lt.letter == '.' then
+                        " text-4xl font-bold text-gray-300"
+
+                    else
+                        ""
+
+                styleState =
+                    case lt.state of
+                        Rolling ->
+                            if lt.letter == dict.current.letter then
+                                "text-yellow-300"
+
+                            else
+                                "text-gray-400"
+
+                        New ->
+                            " "
+
+                        Wrong ->
+                            "text-red-400"
+
+                        RollingW ->
+                            if lt.letter == dict.current.letter then
+                                "text-yellow-300"
+
+                            else
+                                "text-red-400"
+            in
+            span [ class <| String.join " " [ styleDot, styleState ] ]
+                [ text <| (lt.letter |> String.fromChar |> String.replace " " " · ") ]
+
+        viewLetters lts =
+            List.map viewLetter lts
     in
-    div [ class "border rounded border-2 border-white p-4 mb-4 flex" ]
-        [ p [] [ text dict.prev ]
-        , p [ class <| "px-1 " ++ currentKeyStyle ] [ text <| String.fromChar dict.current.letter ]
-        , p [] [ text dict.next ]
+    div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
+        [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters dict.prev)
+        , p [ class <| String.join " " [ "underline inline m-0 p-0", currentKeyStyle ] ]
+            [ viewLetter dict.current ]
+        , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
         ]
 
 
@@ -397,7 +443,8 @@ viewKey shiftOn key =
     in
     div
         [ class <| "px-4 py-2 text-white text-center rounded shadow font-semibold " ++ isPressed ++ " " ++ keyWidth ]
-        [ text keyView ]
+        [ text keyView
+        ]
 
 
 subscriptions : Model -> Sub Msg
@@ -422,9 +469,9 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     let
         model =
-            Model False False (layoutToList Layout.silPowerG) (stringToDictation "ኡመር ቧጂላንፎ ለጀከ ፐተቀወ ዘአቸ ቨ በነመ ሸሐጠ የሠጨኘዠ")
+            Model False False (layoutToList Layout.silPowerG) (stringToDictation "")
     in
-    ( model, Random.generate NewDict <| DictGen.genOne 20 )
+    ( model, Random.generate NewDict <| DictGen.genAll 20 )
 
 
 main : Program () Model Msg

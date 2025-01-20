@@ -132,7 +132,7 @@ silPowerG =
       ]
     , [ ( "CTRL", "CTRL", "ControlLeft" )
       , ( "ALT", "ALT", "AltLeft" )
-      , ( "␣", "␣", "Space" )
+      , ( " ", " ", "Space" )
       , ( "ALT", "ALT", "AltRight" )
       , ( "CTRL", "CTRL", "ControlRight" )
       ]
