@@ -42,7 +42,15 @@ randVowel : List Char -> Generator Char
 randVowel list =
     let
         helper ( offset, letter ) =
-            Char.fromCode <| Char.toCode letter + offset
+            let
+                off =
+                    if offset == 7 &&  (letter == 'ዐ' || letter == 'ቐ' || letter == 'ኸ') then
+                        offset - 1
+                    else
+                        offset
+
+            in
+            Char.fromCode <| Char.toCode letter + off
     in
     Random.map helper <|
         Random.pair (Random.int 1 7) (randConsonant list)
