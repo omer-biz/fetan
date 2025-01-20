@@ -16,7 +16,7 @@
             });
         </script>
     </head>
-    <body class="bg-gray-500">
+    <body class="bg-gray-700">
         <main id="elm-app"></main>
     </body>
 </html>

@@ -388,14 +388,15 @@ viewKeyBoard : Model -> Html Msg
 viewKeyBoard model =
     let
         isfocused =
-            if model.focusKeyBr then
-                "border-4 border-gray-600"
+            if model.focusKeyBr == False then
+                div [ class "absolute inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
+                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to activate " ] ]
 
             else
-                ""
+                text ""
     in
     div
-        [ class <| "border-2 p-10 rounded border-gray-300 " ++ isfocused
+        [ class <| "border-2 p-6 rounded border-gray-500 relative"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0 -- Helps make a div focusable and blurable.
@@ -404,6 +405,7 @@ viewKeyBoard model =
         ]
         (model.keys
             |> List.map (viewRow model.isShiftPressed)
+            |> (::) isfocused
         )
 
 
