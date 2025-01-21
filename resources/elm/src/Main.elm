@@ -1,10 +1,11 @@
 module Main exposing (main)
 
+import Array exposing (Array)
 import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
-import Html exposing (Html, div, main_, p, span, text)
+import Html exposing (Html, div, main_, p, span, table, tbody, td, text, tr)
 import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
@@ -16,12 +17,21 @@ import Random
 type alias Model =
     { keyboard : Keyboard
     , dictation : Dictation
-    , metrics : Metrics
+    , info : Info
+    }
+
+
+type alias Info =
+    { metrics : Metrics
+    , lessonIdx : Int
     }
 
 
 type alias Metrics =
-    {}
+    { speed : { old : Float, new : Float }
+    , accuracy : { old : Float, new : Float }
+    , score : { old : Float, new : Float }
+    }
 
 
 type alias Dictation =
@@ -79,6 +89,11 @@ type Msg
     | FocusKeyBr
     | BlurKeyBr
     | NewDict String
+
+
+dictGenerators : Array (List Char)
+dictGenerators =
+    Array.fromList [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour ]
 
 
 stringToDictation : String -> Dictation
@@ -160,6 +175,9 @@ update msg model =
     let
         keyboard =
             model.keyboard
+
+        info =
+            model.info
     in
     case msg of
         FocusKeyBr ->
@@ -232,13 +250,25 @@ update msg model =
                         _ ->
                             model.dictation
 
+                nextLessonIdx =
+                    -- TODO: only advance when the user has high accuracy on all the current keys
+                    if updatedDict.done == True then
+                        if info.lessonIdx + 1 < Array.length dictGenerators then
+                            info.lessonIdx + 1
+
+                        else
+                            0
+
+                    else
+                        info.lessonIdx
+
                 genNewDict =
-                    let
-                        ud =
-                            updatedDict
-                    in
-                    if ud.done == True then
-                        Random.generate NewDict <| DictGen.genOne 15
+                    if updatedDict.done == True then
+                        dictGenerators
+                            |> Array.get nextLessonIdx
+                            |> Maybe.withDefault DictGen.consonantOne
+                            |> DictGen.genFromList 15
+                            |> Random.generate NewDict
 
                     else
                         Cmd.none
@@ -250,6 +280,7 @@ update msg model =
                         , isShiftPressed = shiftUp
                     }
                 , dictation = updatedDict
+                , info = { info | lessonIdx = nextLessonIdx }
               }
             , genNewDict
             )
@@ -334,16 +365,64 @@ view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
         [ div []
-            [ viewMetrics model.metrics
+            [ viewInfo model.info
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
             ]
         ]
 
 
-viewMetrics : Metrics -> Html Msg
-viewMetrics _ =
-    div [] []
+viewInfo : Info -> Html Msg
+viewInfo info =
+    table [ class "font-mono mb-8" ]
+        [ tbody []
+            [ viewMetrics info.metrics
+            , tr [] [ td [ class "pr-2 text-right" ] [ text "All Keys:" ], viewAllKeys ]
+            , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
+            ]
+        ]
+
+
+viewCurrentKeys : Int -> Html msg
+viewCurrentKeys idx =
+    let
+        viewK k =
+            span [ class "px-1" ] [ text <| String.fromChar k ]
+    in
+    dictGenerators
+        |> Array.get idx
+        |> Maybe.withDefault DictGen.consonantOne
+        |> List.map viewK
+        |> td [ class "font-am"]
+
+
+viewAllKeys : Html msg
+viewAllKeys =
+    let
+        viewK k =
+            span [ class "px-1" ] [ text <| String.fromChar k ]
+    in
+    [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour ]
+        |> List.concat
+        |> List.map viewK
+        |> td [ class "font-am" ]
+
+
+viewMetrics : Metrics -> Html msg
+viewMetrics metrics =
+    let
+        viewMetric m =
+            span [] [ span [] [ text <| String.fromFloat m.new ++ "wpm(" ], span [ class "text-red-400" ] [ text <| String.fromFloat (m.new - m.old) ], span [] [ text ")" ] ]
+    in
+    tr []
+        [ td [ class "pr-2 text-right" ]
+            [ text "Metrics:" ]
+        , td [ class "space-x-2" ]
+            [ span [] [ text "Speed: ", viewMetric metrics.speed ]
+            , span [] [ text "Accuracy: ", viewMetric metrics.accuracy ]
+            , span [] [ text "Score: ", viewMetric metrics.score ]
+            ]
+        ]
 
 
 viewDictation : Dictation -> Html msg
@@ -497,13 +576,28 @@ init _ =
             Keyboard False False (layoutToList Layout.silPowerG)
 
         metrics =
-            Metrics
+            Info initMetric 0
 
         model =
             -- TODO: try to store and get the metrics from localStorage
             Model keyboard (stringToDictation "") metrics
+
+        dictation =
+            dictGenerators
+                |> Array.get 0
+                |> Maybe.withDefault DictGen.consonantOne
+                |> DictGen.genFromList 15
     in
-    ( model, Random.generate NewDict <| DictGen.genAll 15 )
+    ( model, Random.generate NewDict dictation )
+
+
+initMetric : Metrics
+initMetric =
+    let
+        new =
+            { old = 0, new = 0 }
+    in
+    Metrics new new new
 
 
 main : Program () Model Msg

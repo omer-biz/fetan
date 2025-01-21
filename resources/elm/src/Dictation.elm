@@ -1,4 +1,5 @@
-module Dictation exposing (genFour, genOne, genThree, genTwo, genAll)
+module Dictation exposing (consonantFour,
+                               consonantOne, consonantThree, consonantTwo, genAll, genFour, genFromList, genOne, genThree, genTwo)
 
 import Random exposing (Generator)
 
@@ -44,11 +45,11 @@ randVowel list =
         helper ( offset, letter ) =
             let
                 off =
-                    if offset == 7 &&  (letter == 'ዐ' || letter == 'ቐ' || letter == 'ኸ') then
+                    if offset == 7 && (letter == 'ዐ' || letter == 'ቐ' || letter == 'ኸ') then
                         offset - 1
+
                     else
                         offset
-
             in
             Char.fromCode <| Char.toCode letter + off
     in

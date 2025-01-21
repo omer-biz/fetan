@@ -15,6 +15,7 @@ export default {
             fontFamily: {
                 sans: ["Figtree", ...defaultTheme.fontFamily.sans],
                 am: ["NotoSansEthiopic", ...defaultTheme.fontFamily.sans],
+                mono: ['"JetBrains Mono"', "monospace"],
             },
         },
     },
