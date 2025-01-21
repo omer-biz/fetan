@@ -12,12 +12,16 @@ import Json.Decode as Decode
 import Json.Encode exposing (dict)
 import Layout
 import Random
+import Time
 
 
 type alias Model =
     { keyboard : Keyboard
     , dictation : Dictation
     , info : Info
+
+    -- seconds since last dictation generated
+    , time : Float
     }
 
 
@@ -28,9 +32,9 @@ type alias Info =
 
 
 type alias Metrics =
-    { speed : { old : Float, new : Float }
-    , accuracy : { old : Float, new : Float }
-    , score : { old : Float, new : Float }
+    { speed : { old : Int, new : Int }
+    , accuracy : { old : Int, new : Int }
+    , score : { old : Int, new : Int }
     }
 
 
@@ -89,6 +93,12 @@ type Msg
     | FocusKeyBr
     | BlurKeyBr
     | NewDict String
+    | Tick Time.Posix
+
+
+wordCount : number
+wordCount =
+    5
 
 
 dictGenerators : Array (List Char)
@@ -178,6 +188,9 @@ update msg model =
 
         info =
             model.info
+
+        dictation =
+            model.dictation
     in
     case msg of
         FocusKeyBr ->
@@ -267,7 +280,7 @@ update msg model =
                         dictGenerators
                             |> Array.get nextLessonIdx
                             |> Maybe.withDefault DictGen.consonantOne
-                            |> DictGen.genFromList 15
+                            |> DictGen.genFromList wordCount
                             |> Random.generate NewDict
 
                     else
@@ -286,10 +299,71 @@ update msg model =
             )
 
         NewDict dict ->
-            ( { model | dictation = stringToDictation dict }, Cmd.none )
+            let
+                lenChars =
+                    List.length dictation.prev
+                        |> (+) (List.length dictation.next)
+                        |> (+) 1
+
+                correctChars =
+                    List.concat [ dictation.prev, [ dictation.current ], dictation.next ]
+                        |> List.filter (\l -> l.wasWrong == False)
+                        |> List.length
+
+                metrics =
+                    info.metrics
+                        |> updateSpeed model.time lenChars
+                        |> updateAccuracy lenChars correctChars
+                        |> updateScore
+            in
+            ( { model
+                | dictation = stringToDictation dict
+                , time = 0
+                , info = { info | metrics = metrics }
+              }
+            , Cmd.none
+            )
+
+        Tick _ ->
+            ( { model | time = model.time + 1 }, Cmd.none )
 
         NoOp ->
             ( model, Cmd.none )
+
+
+updateSpeed : Float -> Int -> Metrics -> Metrics
+updateSpeed time lenChars metrics =
+    let
+        speed =
+            if time == 0 then
+                { old = metrics.speed.new, new = 0 }
+
+            else
+                { old = metrics.speed.new, new = round <| toFloat lenChars / (time / 60) }
+    in
+    { metrics | speed = speed }
+
+
+updateAccuracy : Int -> Int -> Metrics -> Metrics
+updateAccuracy totalChars correctChars metrics =
+    let
+        accuracy =
+            if metrics.speed.new == 0 then
+                { old = 0, new = 0 }
+
+            else
+                { old = metrics.accuracy.new, new = round <| (toFloat correctChars * 100) / toFloat totalChars }
+    in
+    { metrics | accuracy = accuracy }
+
+
+updateScore : Metrics -> Metrics
+updateScore metrics =
+    let
+        score =
+            { old = metrics.score.new, new = metrics.score.old + metrics.speed.new + metrics.accuracy.new }
+    in
+    { metrics | score = score }
 
 
 updateDictState : Char -> Dictation -> Dictation
@@ -393,7 +467,7 @@ viewCurrentKeys idx =
         |> Array.get idx
         |> Maybe.withDefault DictGen.consonantOne
         |> List.map viewK
-        |> td [ class "font-am"]
+        |> td [ class "font-am" ]
 
 
 viewAllKeys : Html msg
@@ -411,16 +485,23 @@ viewAllKeys =
 viewMetrics : Metrics -> Html msg
 viewMetrics metrics =
     let
-        viewMetric m =
-            span [] [ span [] [ text <| String.fromFloat m.new ++ "wpm(" ], span [ class "text-red-400" ] [ text <| String.fromFloat (m.new - m.old) ], span [] [ text ")" ] ]
+        viewOld m pst =
+            if m.new >= m.old then
+                span [ class "text-green-400" ] [ text <| "+" ++ String.fromInt (m.new - m.old) ++ pst ]
+
+            else
+                span [ class "text-red-400" ] [ text <| String.fromInt (m.new - m.old) ++ pst ]
+
+        viewMetric m pst =
+            span [] [ span [] [ text <| String.fromInt m.new ++ pst ++ "(" ], viewOld m pst, span [] [ text ")" ] ]
     in
     tr []
         [ td [ class "pr-2 text-right" ]
             [ text "Metrics:" ]
         , td [ class "space-x-2" ]
-            [ span [] [ text "Speed: ", viewMetric metrics.speed ]
-            , span [] [ text "Accuracy: ", viewMetric metrics.accuracy ]
-            , span [] [ text "Score: ", viewMetric metrics.score ]
+            [ span [] [ text "Speed: ", viewMetric metrics.speed "wpm" ]
+            , span [] [ text "Accuracy: ", viewMetric metrics.accuracy "%" ]
+            , span [] [ text "Score: ", viewMetric metrics.score "" ]
             ]
         ]
 
@@ -557,6 +638,7 @@ subscriptions model =
         Sub.batch
             [ onKeyDown <| Decode.map KeyDown keyDecoder
             , onKeyUp <| Decode.map KeyUp keyDecoder
+            , Time.every 1000 Tick
             ]
 
     else
@@ -580,13 +662,13 @@ init _ =
 
         model =
             -- TODO: try to store and get the metrics from localStorage
-            Model keyboard (stringToDictation "") metrics
+            Model keyboard (stringToDictation "") metrics 0
 
         dictation =
             dictGenerators
                 |> Array.get 0
                 |> Maybe.withDefault DictGen.consonantOne
-                |> DictGen.genFromList 15
+                |> DictGen.genFromList wordCount
     in
     ( model, Random.generate NewDict dictation )
 
