@@ -1,27 +1,37 @@
-module Dictation exposing (consonantFour,
-                               consonantOne, consonantThree, consonantTwo, genAll, genFour, genFromList, genOne, genThree, genTwo)
+module Dictation exposing
+    ( consonantFour
+    , consonantOne
+    , consonantThree
+    , consonantTwo
+    , genAll
+    , genFour
+    , genFromList
+    , genOne
+    , genThree
+    , genTwo
+    )
 
 import Random exposing (Generator)
 
 
 consonantOne : List Char
 consonantOne =
-    [ 'ሀ', 'ለ', 'ሐ', 'መ', 'ሠ', 'ረ', 'ሰ', 'ሸ', 'ቀ' ]
+    [ 'ሀ', 'ለ', 'በ', 'መ', 'ነ', 'ረ', 'ሰ', 'ከ', 'ቀ' ]
 
 
 consonantTwo : List Char
 consonantTwo =
-    [ 'በ', 'ተ', 'ቸ', 'ኀ', 'ነ', 'ኘ', 'አ', 'ከ', 'ኸ' ]
+    [ 'ወ', 'ተ', 'ቸ', 'ዘ', 'ደ', 'ጀ', 'አ', 'ፈ', 'ፐ'   ]
 
 
 consonantThree : List Char
 consonantThree =
-    [ 'ወ', 'ዐ', 'ዘ', 'ዠ', 'የ', 'ደ', 'ጀ' ]
+    [ 'ሐ', 'ዐ', 'ኀ', 'ሸ',  'የ', 'ሠ', 'ኘ' ]
 
 
 consonantFour : List Char
 consonantFour =
-    [ 'ገ', 'ጠ', 'ጨ', 'ጰ', 'ጸ', 'ፀ', 'ፈ', 'ፐ' ]
+    [ 'ገ', 'ጠ', 'ጨ', 'ጰ', 'ጸ', 'ፀ', 'ዠ', 'ኸ']
 
 
 basePatterns : List String
