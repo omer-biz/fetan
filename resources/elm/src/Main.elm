@@ -572,7 +572,7 @@ viewKeyBoard keyboard =
     let
         isfocused =
             if keyboard.focusKeyBr == False then
-                div [ class "absolute inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
+                div [ class "absolute z-20 inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
                     [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to activate " ] ]
 
             else
@@ -627,8 +627,13 @@ viewKey shiftOn key =
                 key.view
     in
     div
-        [ class <| "px-4 py-2 text-white text-center rounded shadow font-semibold " ++ isPressed ++ " " ++ keyWidth ]
+        [ class <| "relative  z-10 px-4 py-2 text-white text-center rounded shadow font-semibold " ++ keyWidth ++ " " ++ isPressed ]
         [ text keyView
+
+        , if key.code == "KeyF" || key.code == "KeyJ" then
+            span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
+          else
+            text ""
         ]
 
 
