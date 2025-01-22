@@ -98,7 +98,33 @@ type Msg
 
 wordCount : number
 wordCount =
-    5
+    8
+
+
+normalizeLetter : Char -> ( Char, Maybe Char )
+normalizeLetter letter =
+    let
+        cl =
+            Char.toCode letter
+
+        vowelOffset =
+            modBy 0x08 <| modBy 0x10 cl
+
+        vowelPart =
+            if vowelOffset > 0 && vowelOffset < 8 then
+                Just <| Char.fromCode (0x12A0 + vowelOffset)
+
+            else
+                Nothing
+
+        helper =
+            if modBy 0x10 cl >= 8 then
+                ((cl // 0x10) * 0x10) + 8
+
+            else
+                (cl // 0x10) * 0x10
+    in
+    ( Char.fromCode helper, vowelPart )
 
 
 dictGenerators : Array (List Char)
@@ -439,20 +465,20 @@ view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
         [ div []
-            [ viewInfo model.info
+            [ viewInfo model.info model.dictation.current.letter
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
             ]
         ]
 
 
-viewInfo : Info -> Html Msg
-viewInfo info =
+viewInfo : Info -> Char -> Html Msg
+viewInfo info curr =
     table [ class "font-mono mb-8" ]
         [ tbody []
             [ viewMetrics info.metrics
-            , tr [] [ td [ class "pr-2 text-right" ] [ text "All Keys:" ], viewAllKeys ]
             , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
+            , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Key:" ], viewHint curr ]
             ]
         ]
 
@@ -470,16 +496,19 @@ viewCurrentKeys idx =
         |> td [ class "font-am" ]
 
 
-viewAllKeys : Html msg
-viewAllKeys =
+viewHint : Char -> Html msg
+viewHint curr =
     let
-        viewK k =
-            span [ class "px-1" ] [ text <| String.fromChar k ]
+        helper ( cons, vowl ) =
+            case vowl of
+                Just v ->
+                    [ text <|
+                          String.fromChar curr ++ " = '" ++ String.fromChar cons ++ " + " ++ String.fromChar v ++ "'" ]
+
+                Nothing ->
+                    [ text <| "'" ++ String.fromChar cons ++ "'" ]
     in
-    [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour ]
-        |> List.concat
-        |> List.map viewK
-        |> td [ class "font-am" ]
+    span [ class "font-am font-bold underline" ] (helper <| normalizeLetter curr)
 
 
 viewMetrics : Metrics -> Html msg
@@ -629,11 +658,17 @@ viewKey shiftOn key =
     div
         [ class <| "relative  z-10 px-4 py-2 text-white text-center rounded shadow font-semibold " ++ keyWidth ++ " " ++ isPressed ]
         [ text keyView
-
         , if key.code == "KeyF" || key.code == "KeyJ" then
             span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
+
           else
             text ""
+        , case String.split "Key" key.code of
+            "" :: l :: [] ->
+                span [ class "absolute z-2 top-0 left-1 text-xs font-normal" ] [ text l ]
+
+            _ ->
+                text ""
         ]
 
 
