@@ -130,7 +130,7 @@ normalizeLetter letter =
     ( Char.fromCode helper, vowelPart )
 
 
-dictGenerators : Array (List Char)
+dictGenerators : Array (DictGen.Nonempty Char)
 dictGenerators =
     Array.fromList [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour ]
 
@@ -220,6 +220,9 @@ update msg model =
 
         dictation =
             model.dictation
+
+        metrics =
+            info.metrics
     in
     case msg of
         FocusKeyBr ->
@@ -294,12 +297,19 @@ update msg model =
 
                 nextLessonIdx =
                     -- TODO: only advance when the user has high accuracy on all the current keys
-                    if updatedDict.done == True then
-                        if info.lessonIdx + 1 < Array.length dictGenerators then
-                            info.lessonIdx + 1
-
-                        else
-                            0
+                    -- if the speed(both) is above 80wpm, and accuracy is above 80(new)
+                    if
+                        updatedDict.done
+                            == True
+                            && metrics.speed.old
+                            > 80
+                            && metrics.speed.new
+                            > 80
+                            && metrics.accuracy.new
+                            > 80
+                            && (info.lessonIdx + 1 < Array.length dictGenerators)
+                    then
+                        info.lessonIdx + 1
 
                     else
                         info.lessonIdx
@@ -329,30 +339,33 @@ update msg model =
 
         NewDict dict ->
             let
+                allChars =
+                    List.concat [ dictation.prev, dictation.current :: dictation.next ]
+
                 lenChars =
-                    List.length dictation.prev
-                        |> (+) (List.length dictation.next)
-                        |> (+) 1
+                    List.length allChars
 
                 correctChars =
-                    List.concat [ dictation.prev, [ dictation.current ], dictation.next ]
+                    allChars
                         |> List.filter (\l -> l.wasWrong == False)
                         |> List.length
 
-                metrics =
+                newMetrics =
                     if model.time /= 0 then
+                        -- initial run
+                        -- TODO: theoretically this could cause a race condition.
                         info.metrics
                             |> updateSpeed model.time lenChars
                             |> updateAccuracy lenChars correctChars
                             |> updateScore
 
                     else
-                        info.metrics
+                        metrics
             in
             ( { model
                 | dictation = stringToDictation dict
                 , time = 0
-                , info = { info | metrics = metrics }
+                , info = { info | metrics = newMetrics }
               }
             , if model.time == 0 then
                 Cmd.none
@@ -495,6 +508,7 @@ viewCurrentKeys idx =
     dictGenerators
         |> Array.get idx
         |> Maybe.withDefault DictGen.consonantOne
+        |> DictGen.toList
         |> List.map viewK
         |> td [ class "font-am" ]
 
@@ -706,7 +720,7 @@ init flags =
         keyboard =
             Keyboard False False (layoutToList Layout.silPowerG)
 
-        metrics =
+        info =
             case Decode.decodeValue infoDecoder flags of
                 Ok m ->
                     m
@@ -715,12 +729,11 @@ init flags =
                     Info initMetric 0
 
         model =
-            -- TODO: try to store and get the metrics from localStorage
-            Model keyboard (stringToDictation "") metrics 0
+            Model keyboard (stringToDictation "") info 0
 
         dictation =
             dictGenerators
-                |> Array.get 0
+                |> Array.get info.lessonIdx
                 |> Maybe.withDefault DictGen.consonantOne
                 |> DictGen.genFromList wordCount
     in
