@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
@@ -9,7 +9,7 @@ import Html exposing (Html, div, main_, p, span, table, tbody, td, text, tr)
 import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
-import Json.Encode exposing (dict)
+import Json.Encode as Encode exposing (dict)
 import Layout
 import Random
 import Time
@@ -94,6 +94,9 @@ type Msg
     | BlurKeyBr
     | NewDict String
     | Tick Time.Posix
+
+
+port saveInfo : Encode.Value -> Cmd msg
 
 
 wordCount : number
@@ -337,17 +340,25 @@ update msg model =
                         |> List.length
 
                 metrics =
-                    info.metrics
-                        |> updateSpeed model.time lenChars
-                        |> updateAccuracy lenChars correctChars
-                        |> updateScore
+                    if model.time /= 0 then
+                        info.metrics
+                            |> updateSpeed model.time lenChars
+                            |> updateAccuracy lenChars correctChars
+                            |> updateScore
+
+                    else
+                        info.metrics
             in
             ( { model
                 | dictation = stringToDictation dict
                 , time = 0
                 , info = { info | metrics = metrics }
               }
-            , Cmd.none
+            , if model.time == 0 then
+                Cmd.none
+
+              else
+                saveInfo <| encodeInfo { info | metrics = metrics }
             )
 
         Tick _ ->
@@ -361,11 +372,7 @@ updateSpeed : Float -> Int -> Metrics -> Metrics
 updateSpeed time lenChars metrics =
     let
         speed =
-            if time == 0 then
-                { old = metrics.speed.new, new = 0 }
-
-            else
-                { old = metrics.speed.new, new = round <| toFloat lenChars / (time / 60) }
+            { old = metrics.speed.new, new = round <| toFloat lenChars / (time / 60) }
     in
     { metrics | speed = speed }
 
@@ -374,11 +381,7 @@ updateAccuracy : Int -> Int -> Metrics -> Metrics
 updateAccuracy totalChars correctChars metrics =
     let
         accuracy =
-            if metrics.speed.new == 0 then
-                { old = 0, new = 0 }
-
-            else
-                { old = metrics.accuracy.new, new = round <| (toFloat correctChars * 100) / toFloat totalChars }
+            { old = metrics.accuracy.new, new = round <| (toFloat correctChars * 100) / toFloat totalChars }
     in
     { metrics | accuracy = accuracy }
 
@@ -503,7 +506,13 @@ viewHint curr =
             case vowl of
                 Just v ->
                     [ text <|
-                          String.fromChar curr ++ " = '" ++ String.fromChar cons ++ " + " ++ String.fromChar v ++ "'" ]
+                        String.fromChar curr
+                            ++ " = '"
+                            ++ String.fromChar cons
+                            ++ " + "
+                            ++ String.fromChar v
+                            ++ "'"
+                    ]
 
                 Nothing ->
                     [ text <| "'" ++ String.fromChar cons ++ "'" ]
@@ -691,14 +700,19 @@ keyDecoder =
         Decode.field "code" Decode.string
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : Encode.Value -> ( Model, Cmd Msg )
+init flags =
     let
         keyboard =
             Keyboard False False (layoutToList Layout.silPowerG)
 
         metrics =
-            Info initMetric 0
+            case Decode.decodeValue infoDecoder flags of
+                Ok m ->
+                    m
+
+                Err _ ->
+                    Info initMetric 0
 
         model =
             -- TODO: try to store and get the metrics from localStorage
@@ -713,6 +727,50 @@ init _ =
     ( model, Random.generate NewDict dictation )
 
 
+metricDecoder : Decode.Decoder { old : Int, new : Int }
+metricDecoder =
+    Decode.map2 (\o n -> { old = o, new = n })
+        (Decode.field "old" Decode.int)
+        (Decode.field "new" Decode.int)
+
+
+metricsDecoder : Decode.Decoder Metrics
+metricsDecoder =
+    Decode.map3 Metrics
+        (Decode.field "speed" metricDecoder)
+        (Decode.field "accuracy" metricDecoder)
+        (Decode.field "score" metricDecoder)
+
+
+infoDecoder : Decode.Decoder Info
+infoDecoder =
+    Decode.map2 Info
+        (Decode.field "metrics" metricsDecoder)
+        (Decode.field "lessonIdx" Decode.int)
+
+
+encodeMetric : { old : Int, new : Int } -> Encode.Value
+encodeMetric metric =
+    Encode.object [ ( "old", Encode.int metric.old ), ( "new", Encode.int metric.new ) ]
+
+
+encodeMetrics : Metrics -> Encode.Value
+encodeMetrics metrics =
+    Encode.object
+        [ ( "speed", encodeMetric metrics.speed )
+        , ( "accuracy", encodeMetric metrics.accuracy )
+        , ( "score", encodeMetric metrics.score )
+        ]
+
+
+encodeInfo : Info -> Encode.Value
+encodeInfo info =
+    Encode.object
+        [ ( "metrics", encodeMetrics info.metrics )
+        , ( "lessonIdx", Encode.int info.lessonIdx )
+        ]
+
+
 initMetric : Metrics
 initMetric =
     let
@@ -722,7 +780,7 @@ initMetric =
     Metrics new new new
 
 
-main : Program () Model Msg
+main : Program Encode.Value Model Msg
 main =
     Browser.element
         { init = init

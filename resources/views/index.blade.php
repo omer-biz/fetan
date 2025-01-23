@@ -9,10 +9,17 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
 
         <script>
+            let lessonInfo = localStorage.getItem('lessonInfo');
+            let flags = lessonInfo ? JSON.parse(lessonInfo) : null;
+
             document.addEventListener("DOMContentLoaded", () => {
                 const app = Elm.Main.init({
                     node: document.getElementById("elm-app"),
-                    flags: null,
+                    flags: flags,
+                });
+
+                app.ports.saveInfo.subscribe(function(state) {
+                    localStorage.setItem('lessonInfo', JSON.stringify(state));
                 });
             });
         </script>
