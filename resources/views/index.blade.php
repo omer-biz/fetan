@@ -27,4 +27,6 @@
     <body class="bg-gray-700">
         <main id="elm-app"></main>
     </body>
+    <foot>
+    </foot>
 </html>

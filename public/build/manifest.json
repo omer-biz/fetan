@@ -1,0 +1,17 @@
+{
+  "resources/css/app.css": {
+    "file": "assets/app-CPNS8xmY.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/fonts/NotoSansEthiopic-Regular.ttf": {
+    "file": "assets/NotoSansEthiopic-Regular-BBiKHw9n.ttf",
+    "src": "resources/fonts/NotoSansEthiopic-Regular.ttf"
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-DFyqli8e.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true
+  }
+}

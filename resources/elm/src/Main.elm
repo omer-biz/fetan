@@ -296,8 +296,6 @@ update msg model =
                             model.dictation
 
                 nextLessonIdx =
-                    -- TODO: only advance when the user has high accuracy on all the current keys
-                    -- if the speed(both) is above 80wpm, and accuracy is above 80(new)
                     if
                         updatedDict.done
                             == True
@@ -494,7 +492,7 @@ viewInfo info curr =
         [ tbody []
             [ viewMetrics info.metrics
             , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
-            , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Key:" ], viewHint curr ]
+            , tr [] [ td [ class "pr-2 text-right" ] [ text "Key Combo:" ], viewHint curr ]
             ]
         ]
 
