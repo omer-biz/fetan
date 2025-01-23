@@ -101,7 +101,7 @@ port saveInfo : Encode.Value -> Cmd msg
 
 wordCount : number
 wordCount =
-    8
+    15
 
 
 normalizeLetter : Char -> ( Char, Maybe Char )
