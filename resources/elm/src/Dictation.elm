@@ -1,5 +1,6 @@
 module Dictation exposing
-    ( consonantFour
+    ( Nonempty(..)
+    , consonantFour
     , consonantOne
     , consonantThree
     , consonantTwo
@@ -9,47 +10,79 @@ module Dictation exposing
     , genOne
     , genThree
     , genTwo
+    , toList
     )
 
 import Random exposing (Generator)
 
 
-consonantOne : List Char
+type Nonempty a
+    = Nonempty a (List a)
+
+
+head : Nonempty a -> a
+head (Nonempty x _) =
+    x
+
+
+tail : Nonempty a -> List a
+tail (Nonempty _ xs) =
+    xs
+
+
+toList : Nonempty a -> List a
+toList (Nonempty x xs) =
+    x :: xs
+
+
+concat : Nonempty (Nonempty a) -> Nonempty a
+concat (Nonempty xs xss) =
+    let
+        hd =
+            head xs
+
+        tl =
+            tail xs ++ List.concat (List.map toList xss)
+    in
+    Nonempty hd tl
+
+
+consonantOne : Nonempty Char
 consonantOne =
-    [ 'ሀ', 'ለ', 'በ', 'መ', 'ነ', 'ረ', 'ሰ', 'ከ', 'ቀ' ]
+    Nonempty 'ሀ' [ 'ለ', 'በ', 'መ', 'ነ', 'ረ', 'ሰ', 'ከ', 'ቀ' ]
 
 
-consonantTwo : List Char
+consonantTwo : Nonempty Char
 consonantTwo =
-    [ 'ወ', 'ተ', 'ቸ', 'ዘ', 'ደ', 'ጀ', 'አ', 'ፈ', 'ፐ'   ]
+    Nonempty 'ወ' [ 'ተ', 'ቸ', 'ዘ', 'ደ', 'ጀ', 'አ', 'ፈ', 'ፐ' ]
 
 
-consonantThree : List Char
+consonantThree : Nonempty Char
 consonantThree =
-    [ 'ሐ', 'ዐ', 'ኀ', 'ሸ',  'የ', 'ሠ', 'ኘ' ]
+    Nonempty 'ሐ' [ 'ዐ', 'ኀ', 'ሸ', 'የ', 'ሠ', 'ኘ' ]
 
 
-consonantFour : List Char
+consonantFour : Nonempty Char
 consonantFour =
-    [ 'ገ', 'ጠ', 'ጨ', 'ጰ', 'ጸ', 'ፀ', 'ዠ', 'ኸ']
+    Nonempty 'ገ' [ 'ጠ', 'ጨ', 'ጰ', 'ጸ', 'ፀ', 'ዠ', 'ኸ' ]
 
 
-basePatterns : List String
+basePatterns : Nonempty String
 basePatterns =
-    [ "CVC", "CVCV", "CVCVC", "CVCC" ]
+    Nonempty "CVC" [ "CVCV", "CVCVC", "CVCC" ]
 
 
-randConsonant : List Char -> Generator Char
-randConsonant list =
-    Random.uniform 'አ' list
+randConsonant : Nonempty Char -> Generator Char
+randConsonant (Nonempty x xs) =
+    Random.uniform x xs
 
 
 randPattern : Generator String
 randPattern =
-    Random.uniform "CV" basePatterns
+    Random.uniform (head basePatterns) (tail basePatterns)
 
 
-randVowel : List Char -> Generator Char
+randVowel : Nonempty Char -> Generator Char
 randVowel list =
     let
         helper ( offset, letter ) =
@@ -77,7 +110,7 @@ combineGenerators generators =
             Random.map2 (::) generator (combineGenerators rest)
 
 
-randWord : List Char -> Generator String
+randWord : Nonempty Char -> Generator String
 randWord list =
     let
         helper pat =
@@ -100,7 +133,7 @@ randWord list =
         |> Random.map (\l -> String.fromList l)
 
 
-genFromList : Int -> List Char -> Generator String
+genFromList : Int -> Nonempty Char -> Generator String
 genFromList len list =
     randWord list
         |> Random.list len
@@ -132,6 +165,6 @@ genFour len =
 
 genAll : Int -> Generator String
 genAll len =
-    [ consonantOne, consonantTwo, consonantThree, consonantFour ]
-        |> List.concat
+    Nonempty consonantOne [ consonantTwo, consonantThree, consonantFour ]
+        |> concat
         |> genFromList len
