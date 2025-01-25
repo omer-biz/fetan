@@ -562,15 +562,18 @@ viewDictation : Dictation -> Html msg
 viewDictation dict =
     let
         currentKeyStyle =
-            case dict.current.state of
-                Rolling ->
-                    "text-yellow-300"
+            if
+                (dict.current.wasWrong && (dict.current.state /= Rolling))
+                    || dict.current.state
+                    == Wrong
+            then
+                "text-red-400"
 
-                Wrong ->
-                    "text-red-400"
+            else if dict.current.state == Rolling then
+                "text-yellow-300"
 
-                _ ->
-                    ""
+            else
+                ""
 
         viewLetter lt =
             let
@@ -585,15 +588,7 @@ viewDictation dict =
                 [ text <| (lt.letter |> String.fromChar |> String.replace " " " · ") ]
 
         viewCurrentLetter =
-            let
-                wasWrong =
-                    if dict.current.wasWrong && (dict.current.state /= Rolling) then
-                        "text-red-400"
-
-                    else
-                        ""
-            in
-            span [ class wasWrong ]
+            span [ class "border-white border-b-4" ]
                 [ text <| (dict.current.letter |> String.fromChar |> String.replace " " " · ") ]
 
         viewLetters lts =
@@ -601,7 +596,7 @@ viewDictation dict =
     in
     div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
         [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters dict.prev)
-        , p [ class <| String.join " " [ "underline inline m-0 p-0", currentKeyStyle ] ]
+        , p [ class <| String.join " " [ "inline m-0 p-0", currentKeyStyle ] ]
             [ viewCurrentLetter ]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
         ]
