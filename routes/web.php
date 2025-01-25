@@ -11,3 +11,5 @@ Route::get('/scoreboard', fn() => view('scoreboard'))->name('scoreboard');
 
 Route::get('/contact-us', fn() => view('contact-us'))->name('contact-us');
 Route::post('/contact-us', [ContactUs::class, 'submitContactForm'])->name('contact-us.post');
+
+Route::get('/signin', fn() => view('signin'))->name('signin');
