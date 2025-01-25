@@ -674,7 +674,8 @@ viewKey shiftOn key =
                 key.view
     in
     div
-        [ class <| String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
+        [ class
+              <| String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
         , onMouseDown <| KeyDown key.code
         , onMouseUp <| KeyUp key.code
         ]
