@@ -1,11 +1,11 @@
 <?php
 
+use App\Http\Controllers\ContactUs;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('index');
-})->name('home');
+Route::get('/', fn () => view('index'))->name('home');
 
-Route::get('/faq', function () {
-    return view('faq');
-})->name('faq');
+Route::get('/faq', fn() => view('faq'))->name('faq');
+
+Route::get('/contact-us', fn() => view('contact-us'))->name('contact-us');
+Route::post('/contact-us', [ContactUs::class, 'submitContactForm'])->name('contact-us.post');

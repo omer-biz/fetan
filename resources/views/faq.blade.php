@@ -11,7 +11,7 @@
                 </div>
 
                 <div class="bg-gray-800 shadow rounded-lg p-6">
-                    <h3 class="text-xl font-semibold mb-4">How is the lesson structured?</h3>
+                    <h3 class="text-xl font-semibold mb-4">2. How is the lesson structured?</h3>
                     <ul class="space-y-2 text-gray-300">
                         <li>
                             <span class="font-bold">-</span> The keys are divided into

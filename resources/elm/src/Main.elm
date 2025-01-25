@@ -7,7 +7,7 @@ import Dict exposing (Dict, update)
 import Dictation as DictGen
 import Html exposing (Html, div, main_, p, span, table, tbody, td, text, tr)
 import Html.Attributes exposing (class, tabindex)
-import Html.Events exposing (onBlur, onFocus, onMouseDown, onMouseUp, preventDefaultOn)
+import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
 import Layout
@@ -674,10 +674,8 @@ viewKey shiftOn key =
                 key.view
     in
     div
-        [ class
-              <| String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
-        , onMouseDown <| KeyDown key.code
-        , onMouseUp <| KeyUp key.code
+        [ class <|
+            String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
         ]
         [ text keyView
         , if key.code == "KeyF" || key.code == "KeyJ" then

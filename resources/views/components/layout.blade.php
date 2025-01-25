@@ -12,15 +12,15 @@
     <div class="container mx-auto flex justify-between items-center">
         <!-- Logo -->
         <div class="text-2xl font-bold">
-            <a href="#" class="hover:text-gray-300 transition">Fetan</a>
+            <a href="{{ route('home') }}" class="hover:text-gray-300 transition">Fetan</a>
         </div>
 
         <!-- Navigation -->
         <nav class="flex space-x-6">
-            <a href="#" class="text-gray-300 hover:text-white transition">Home</a>
+            <a href="{{ route('home') }}" class="text-gray-300 hover:text-white transition">Home</a>
             <a href="#" class="text-gray-300 hover:text-white transition">Scoreboard</a>
             <a href="{{ route('faq') }}" class="text-gray-300 hover:text-white transition">FAQ</a>
-            <a href="#" class="text-gray-300 hover:text-white transition">Contact</a>
+            <a href="{{ route('contact-us') }}" class="text-gray-300 hover:text-white transition">Contact</a>
         </nav>
     </div>
 </header>
@@ -43,10 +43,10 @@
         <div>
             <h3 class="text-xl font-semibold mb-4">Quick Links</h3>
             <ul>
-                <li><a href="#" class="text-gray-300 hover:text-white transition">Home</a></li>
+                <li><a href="{{ route('home') }}" class="text-gray-300 hover:text-white transition">Home</a></li>
                 <li><a href="#" class="text-gray-300 hover:text-white transition">Scoreboard</a></li>
                 <li><a href="{{ route('faq') }}" class="text-gray-300 hover:text-white transition">FAQ</a></li>
-                <li><a href="#" class="text-gray-300 hover:text-white transition">Contact</a></li>
+                <li><a href="{{ route('contact-us') }}" class="text-gray-300 hover:text-white transition">Contact</a></li>
             </ul>
         </div>
 
