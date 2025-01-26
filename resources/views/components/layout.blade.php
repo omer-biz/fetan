@@ -7,7 +7,19 @@
         <title>Fetan</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script>
-            // Function to handle form submission with reCAPTCHA
+            function infoToForm(form, info) {
+                form.querySelector('input[name="lessonIdx"]').value = info.lessonIdx;
+
+                form.querySelector('input[name="speed.new"]').value = info.metrics.speed.new;
+                form.querySelector('input[name="speed.old"]').value = info.metrics.speed.old;
+
+                form.querySelector('input[name="accuracy.new"]').value = info.metrics.accuracy.new;
+                form.querySelector('input[name="accuracy.old"]').value = info.metrics.accuracy.old;
+
+                form.querySelector('input[name="score.new"]').value = info.metrics.score.new;
+                form.querySelector('input[name="score.old"]').value = info.metrics.score.old;
+            }
+
             function handleFormSubmission(formId, recaptchaAction) {
                 const form = document.getElementById(formId);
                 form.addEventListener('submit', function (event) {
@@ -19,22 +31,12 @@
                         lessonInfo = JSON.parse(lessonInfo);
 
                         if (lessonInfo != null) {
-                            form.querySelector('input[name="lessonIdx"]').value = lessonInfo.lessonIdx;
-
-                            form.querySelector('input[name="speed.new"]').value = lessonInfo.metrics.speed.new;
-                            form.querySelector('input[name="speed.old"]').value = lessonInfo.metrics.speed.old;
-
-                            form.querySelector('input[name="accuracy.new"]').value = lessonInfo.metrics.accuracy.new;
-                            form.querySelector('input[name="accuracy.old"]').value = lessonInfo.metrics.accuracy.old;
-
-                            form.querySelector('input[name="score.new"]').value = lessonInfo.metrics.score.new;
-                            form.querySelector('input[name="score.old"]').value = lessonInfo.metrics.score.old;
+                            infoToForm(form, lessonInfo);
                         }
                     }
 
                     grecaptcha.ready(function () {
                         grecaptcha.execute('{{ config('services.recaptcha.key') }}', { action: recaptchaAction }).then(function (token) {
-
 
                             // Assign token to the hidden input field
                             form.querySelector('input[name="g-recaptcha-response"]').value = token;

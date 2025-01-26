@@ -371,7 +371,7 @@ update msg model =
                 Cmd.none
 
               else
-                saveInfo <| encodeInfo { info | metrics = metrics }
+                saveInfo <| encodeInfo { info | metrics = newMetrics }
             )
 
         Tick _ ->

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContactUs;
+use App\Http\Controllers\InfoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => view('index'))->name('home');
@@ -16,4 +17,7 @@ Route::middleware(['captcha'])->group(function () {
     Route::post('/contact-us', [ContactUs::class, 'submitContactForm'])->name('contact-us.post');
 });
 
-Route::delete('/logout', [AuthController::class, 'logout'])->name('auth.logout');
+Route::middleware(['auth'])->group(function () {
+    Route::delete('/logout', [AuthController::class, 'logout'])->name('auth.logout');
+    Route::post('/info/update', [InfoController::class, 'update'])->name('info.update');
+});
