@@ -1,7 +1,33 @@
+@php
+$user = Auth::user();
+@endphp
+
 <x-layout>
     <script>
+     @auth
+        let flags = {
+            lessonIdx: {{ $user->lessonIdx }},
+            metrics: {
+                speed: {
+                    new: {{ $user->speed_new }},
+                    old: {{ $user->speed_old }},
+                },
+                accuracy: {
+                    new: {{ $user->accuracy_new }},
+                    old: {{ $user->accuracy_old }},
+                },
+                score: {
+                    new: {{ $user->score_new }},
+                    old: {{ $user->score_old }},
+                },
+            }
+        };
+     @endauth
+
+     @guest
         let lessonInfo = localStorage.getItem('lessonInfo');
         let flags = lessonInfo ? JSON.parse(lessonInfo) : null;
+     @endguest
 
         function uploadInfo(info) {
             if (flags != null) {

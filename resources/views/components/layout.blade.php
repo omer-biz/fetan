@@ -23,8 +23,7 @@
             function handleFormSubmission(formId, recaptchaAction) {
                 const form = document.getElementById(formId);
                 form.addEventListener('submit', function (event) {
-                    event.preventDefault(); // Prevent default form submission
-
+                    event.preventDefault();
 
                     if (formId == 'signup-form') {
                         let lessonInfo = localStorage.getItem('lessonInfo');
@@ -37,11 +36,7 @@
 
                     grecaptcha.ready(function () {
                         grecaptcha.execute('{{ config('services.recaptcha.key') }}', { action: recaptchaAction }).then(function (token) {
-
-                            // Assign token to the hidden input field
                             form.querySelector('input[name="g-recaptcha-response"]').value = token;
-
-                            // Submit the form programmatically
                             form.submit();
                         });
                     });
