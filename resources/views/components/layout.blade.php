@@ -4,7 +4,7 @@
         <meta charset="utf-8">
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
-        <title>Fetan</title>
+        <title>ፈጣን</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script>
             function infoToForm(form, info) {
@@ -55,7 +55,11 @@
             <div class="container mx-auto flex justify-between items-center">
                 <!-- Logo -->
                 <div class="text-2xl font-bold">
-                    <a href="{{ route('home') }}" class="hover:text-gray-300 transition">Fetan</a>
+                    <a href="{{ route('home') }}" class="hover:text-gray-300 transition">
+                        <x-key>ፈ</x-key>
+                        <x-key>ጣ</x-key>
+                        <x-key>ን</x-key>
+                    </a>
                 </div>
 
                 <!-- Navigation -->
@@ -110,15 +114,8 @@
                 <div>
                     <h3 class="text-xl font-semibold mb-4">Follow Us</h3>
                     <div class="flex space-x-4">
-                        <a href="#" class="text-gray-300 hover:text-white transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M24 4.6a10.13 10.13 0 01-2.83.78 4.93 4.93 0 002.17-2.71 9.72 9.72 0 01-3.1 1.19A4.92 4.92 0 0016.75 3c-2.73 0-4.94 2.21-4.94 4.93 0 .38.04.76.13 1.12A13.94 13.94 0 011.67 3.15a4.93 4.93 0 001.52 6.57 4.93 4.93 0 01-2.23-.62v.06c0 2.4 1.71 4.42 3.98 4.88a5.02 5.02 0 01-2.2.08 4.92 4.92 0 004.6 3.41A9.89 9.89 0 010 21.54a14 14 0 007.55 2.21c9.05 0 14-7.5 14-14v-.64A10.02 10.02 0 0024 4.6z" />
-                            </svg>
-                        </a>
-                        <a href="#" class="text-gray-300 hover:text-white transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M9 3v18c-1.104-.005-2.211-.25-3.197-.729C4.243 19.566 3.109 18.61 2.25 17.5 1.39 16.39 1.059 15.119.941 13.75H4c.077.394.234.773.463 1.118.228.344.521.651.868.905.346.253.739.452 1.158.587.42.134.86.198 1.302.193v-4.5H3.579L3.568 10.5h3.422v-3c0-1.464.396-2.782 1.142-3.884C8.879 2.513 10.067 2 11.292 2h3.708V5h-2.708c-.498 0-.978.212-1.293.586C10.978 5.96 10.786 6.44 10.786 7v2h4.358l-.641 3H10.786V18c2.761 0 5.306-.986 7.25-2.5 1.944-1.514 3.25-3.635 3.735-5.895.482-2.26.482-4.62 0-6.88C21.286 1.54 19.98-.086 18.036-1.6 16.092-3.114 13.547-4 10.786-4H8z" />
-                            </svg>
+                        <a href="https://t.me/fetan_mesnoy" class="">
+                            <svg class="h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <circle cx="16" cy="16" r="14" fill="url(#paint0_linear_87_7225)"></circle> <path d="M22.9866 10.2088C23.1112 9.40332 22.3454 8.76755 21.6292 9.082L7.36482 15.3448C6.85123 15.5703 6.8888 16.3483 7.42147 16.5179L10.3631 17.4547C10.9246 17.6335 11.5325 17.541 12.0228 17.2023L18.655 12.6203C18.855 12.4821 19.073 12.7665 18.9021 12.9426L14.1281 17.8646C13.665 18.3421 13.7569 19.1512 14.314 19.5005L19.659 22.8523C20.2585 23.2282 21.0297 22.8506 21.1418 22.1261L22.9866 10.2088Z" fill="white"></path> <defs> <linearGradient id="paint0_linear_87_7225" x1="16" y1="2" x2="16" y2="30" gradientUnits="userSpaceOnUse"> <stop stop-color="#37BBFE"></stop> <stop offset="1" stop-color="#007DBB"></stop> </linearGradient> </defs> </g></svg>
                         </a>
                     </div>
                 </div>
