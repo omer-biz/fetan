@@ -71,11 +71,16 @@
                     <a href="{{ route('faq') }}" class="text-gray-300 hover:text-white transition">FAQ</a>
                     <a href="{{ route('contact-us') }}" class="text-gray-300 hover:text-white transition">Contact</a>
                     @auth
-                    <form method="POST" action="{{ route('auth.logout') }}" class="inline">
+                    <form id="logout_form" method="POST" action="{{ route('auth.logout') }}" class="inline">
                         @csrf
                         @method('DELETE')
                         <button class="text-gray-300 hover:text-white transition">Logout</button>
                     </form>
+                    <script>
+                     window.logout_form.addEventListener('submit', function(event) {
+                         localStorage.setItem('lessonInfo', '');
+                     });
+                    </script>
                     @endauth
                     @guest
                     <a href="{{ route('signin') }}" class="text-gray-300 hover:text-white transition">SignIn</a>
