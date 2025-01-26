@@ -1,10 +1,5 @@
 <x-layout>
-@if (session('alert.success'))
-    <div id="flash_message" class="cursor-pointer fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg" onclick="window.flash_message.remove()">
-    <span class="hidden bg-green-500 bg-red-500 bg-blue-500 bg-yellow-500"></span>
-    Thank you for contacting us! We will respond shortly.
-    </div>
-@endif
+<script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.key') }}"></script>
 <main class="bg-gray-700 text-white py-12 px-4">
     <div class="container mx-auto max-w-3xl">
         <h2 class="text-3xl font-bold text-center mb-8">Contact Us</h2>
@@ -50,14 +45,7 @@
                         <textarea id="message" name="message" rows="4" required class="w-full px-4 py-3 mt-2 bg-gray-900 text-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lime-400"></textarea>
                     </div>
 
-
-                    <!-- Google reCAPTCHA -->
-                    <div class="mb-4">
-                        <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.key') }}"></div>
-                        @error('g-recaptcha-response')
-                        <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
-                    </div>
+                    <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
 
                     <!-- Submit Button -->
                     <div class="text-center">
@@ -69,5 +57,4 @@
     </div>
 </main>
 
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </x-layout>

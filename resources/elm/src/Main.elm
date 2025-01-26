@@ -620,7 +620,7 @@ viewKeyBoard keyboard =
         isfocused =
             if keyboard.focusKeyBr == False then
                 div [ class "absolute z-20 inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
-                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to activate " ] ]
+                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to Start" ] ]
 
             else
                 text ""

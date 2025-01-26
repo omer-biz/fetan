@@ -6,8 +6,55 @@
 
         <title>Fetan</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <script>
+            // Function to handle form submission with reCAPTCHA
+            function handleFormSubmission(formId, recaptchaAction) {
+                const form = document.getElementById(formId);
+                form.addEventListener('submit', function (event) {
+                    event.preventDefault(); // Prevent default form submission
+
+
+                    if (formId == 'signup-form') {
+                        let lessonInfo = localStorage.getItem('lessonInfo');
+                        lessonInfo = JSON.parse(lessonInfo);
+
+                        if (lessonInfo != null) {
+                            form.querySelector('input[name="lessonIdx"]').value = lessonInfo.lessonIdx;
+
+                            form.querySelector('input[name="speed.new"]').value = lessonInfo.metrics.speed.new;
+                            form.querySelector('input[name="speed.old"]').value = lessonInfo.metrics.speed.old;
+
+                            form.querySelector('input[name="accuracy.new"]').value = lessonInfo.metrics.accuracy.new;
+                            form.querySelector('input[name="accuracy.old"]').value = lessonInfo.metrics.accuracy.old;
+
+                            form.querySelector('input[name="score.new"]').value = lessonInfo.metrics.score.new;
+                            form.querySelector('input[name="score.old"]').value = lessonInfo.metrics.score.old;
+                        }
+                    }
+
+                    grecaptcha.ready(function () {
+                        grecaptcha.execute('{{ config('services.recaptcha.key') }}', { action: recaptchaAction }).then(function (token) {
+
+
+                            // Assign token to the hidden input field
+                            form.querySelector('input[name="g-recaptcha-response"]').value = token;
+
+                            // Submit the form programmatically
+                            form.submit();
+                        });
+                    });
+                });
+            }
+
+        </script>
     </head>
     <body class="flex flex-col min-h-screen bg-gray-700">
+        @if (session('alert.success'))
+            <div id="flash_message" class="cursor-pointer fixed top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded shadow-lg" onclick="window.flash_message.remove()">
+            <span class="hidden bg-green-500 bg-red-500 bg-blue-500 bg-yellow-500"></span>
+            {{ session('alert.success') }}
+            </div>
+        @endif
         <header class="bg-gray-700 text-white py-4">
             <div class="container mx-auto flex justify-between items-center">
                 <!-- Logo -->
@@ -21,7 +68,16 @@
                     <a href="{{ route('scoreboard') }}" class="text-gray-300 hover:text-white transition">Scoreboard</a>
                     <a href="{{ route('faq') }}" class="text-gray-300 hover:text-white transition">FAQ</a>
                     <a href="{{ route('contact-us') }}" class="text-gray-300 hover:text-white transition">Contact</a>
+                    @auth
+                    <form method="POST" action="{{ route('auth.logout') }}" class="inline">
+                        @csrf
+                        @method('DELETE')
+                        <button class="text-gray-300 hover:text-white transition">Logout</button>
+                    </form>
+                    @endauth
+                    @guest
                     <a href="{{ route('signin') }}" class="text-gray-300 hover:text-white transition">SignIn</a>
+                    @endguest
                 </nav>
             </div>
         </header>

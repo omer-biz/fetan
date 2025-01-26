@@ -1,4 +1,5 @@
 <x-layout>
+<script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.key') }}"></script>
 <main class="flex-grow bg-gray-700 text-white flex flex-col items-center py-12 px-4">
     <!-- Welcome Message -->
     <div class="max-w-2xl text-center mb-8">
@@ -28,31 +29,31 @@
     <!-- Forms Container -->
     <div class="w-full max-w-lg">
         <!-- Sign In Form -->
-        <form id="signin-form" class="space-y-6">
+        <form method="POST" id="signin-form" class="space-y-6" action="{{ route('auth.signin') }}">
+            @csrf
             <div>
                 <label for="username" class="block text-sm font-medium">Username</label>
                 <input
-                    id="username"
                     name="username"
                     type="text"
                     class="w-full mt-1 p-3 bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-lime-500">
+
+                @error('username')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium">Password</label>
                 <input
-                    id="password"
                     name="password"
                     type="password"
                     class="w-full mt-1 p-3 bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-lime-500">
-            </div>
-
-            <!-- Google reCAPTCHA -->
-            <div class="mb-4">
-                <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.key') }}"></div>
-                @error('g-recaptcha-response')
+                @error('password')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
             </div>
+
+            <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
             <button
                 type="submit"
                 class="w-full py-3 bg-lime-500 text-gray-800 font-medium rounded hover:bg-lime-400 transition-all">
@@ -61,29 +62,54 @@
         </form>
 
         <!-- Sign Up Form -->
-        <form id="signup-form" class="space-y-6 hidden">
+        <form method="POST" id="signup-form" class="space-y-6 hidden" action="{{ route('auth.signup') }}">
+            @csrf
             <div>
                 <label for="susername" class="block text-sm font-medium">Username</label>
                 <input
-                    id="username"
+                    name="username"
                     type="text"
                     class="w-full mt-1 p-3 bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-lime-500">
+
+                @error('username')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium">Password</label>
                 <input
-                    id="password"
+                    name="password"
                     type="password"
                     class="w-full mt-1 p-3 bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-lime-500">
-            </div>
-
-            <!-- Google reCAPTCHA -->
-            <div class="mb-4">
-                <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.key') }}"></div>
-                @error('g-recaptcha-response')
+                @error('password')
                 <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
                 @enderror
+
             </div>
+            <div>
+                <label for="password_confirmation" class="block text-sm font-medium">Password Confrim</label>
+                <input
+                    name="password_confirmation"
+                    type="password"
+                    class="w-full mt-1 p-3 bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-lime-500">
+                @error('password')
+                <p class="mt-2 text-sm text-red-600">{{ $message }}</p>
+                @enderror
+
+            </div>
+
+            <input type="hidden" name="g-recaptcha-response" id="g-recaptcha-response">
+
+            <input type="hidden" name="lessonIdx">
+
+            <input type="hidden" name="speed.new">
+            <input type="hidden" name="speed.old">
+
+            <input type="hidden" name="accuracy.new">
+            <input type="hidden" name="accuracy.old">
+
+            <input type="hidden" name="score.new">
+            <input type="hidden" name="score.old">
 
             <button
                 type="submit"
@@ -94,7 +120,6 @@
     </div>
 </main>
 
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <script>
     function switchTab(tab) {
         // Update the tab styling
@@ -110,6 +135,10 @@
 
     // Initialize default active tab
     switchTab('signin');
-</script>
 
+
+    // Attach event listeners for both forms
+    handleFormSubmission('signup-form', 'signup_form_submit');
+    handleFormSubmission('signin-form', 'signin_form_submit');
+</script>
 </x-layout>
