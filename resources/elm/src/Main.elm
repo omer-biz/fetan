@@ -369,7 +369,7 @@ update msg model =
                 Cmd.none
 
               else
-                saveInfo <| encodeInfo { info | metrics = metrics }
+                saveInfo <| encodeInfo { info | metrics = newMetrics }
             )
 
         Tick _ ->
@@ -618,7 +618,7 @@ viewKeyBoard keyboard =
         isfocused =
             if keyboard.focusKeyBr == False then
                 div [ class "absolute z-20 inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
-                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to activate " ] ]
+                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to Start" ] ]
 
             else
                 text ""
@@ -637,7 +637,7 @@ viewKeyBoard keyboard =
         )
 
 
-viewRow : Bool -> List Key -> Html msg
+viewRow : Bool -> List Key -> Html Msg
 viewRow shiftOn row =
     div [ class "flex justify-center gap-1 py-1" ]
         (row
@@ -645,7 +645,7 @@ viewRow shiftOn row =
         )
 
 
-viewKey : Bool -> Key -> Html msg
+viewKey : Bool -> Key -> Html Msg
 viewKey shiftOn key =
     let
         isPressed =
@@ -672,7 +672,9 @@ viewKey shiftOn key =
                 key.view
     in
     div
-        [ class <| "relative  z-10 px-4 py-2 text-white text-center rounded shadow font-semibold " ++ keyWidth ++ " " ++ isPressed ]
+        [ class <|
+            String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
+        ]
         [ text keyView
         , if key.code == "KeyF" || key.code == "KeyJ" then
             span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
