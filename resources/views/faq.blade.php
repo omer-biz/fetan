@@ -10,7 +10,7 @@
                     </p>
                 </div>
 
-                <div class="bg-gray-800 shadow rounded-lg p-6">
+                <div id="key-groups" class="bg-gray-800 shadow rounded-lg p-6">
                     <h3 class="text-xl font-semibold mb-4">2. How is the lesson structured?</h3>
                     <ul class="space-y-2 text-gray-300">
                         <li>
