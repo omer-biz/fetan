@@ -5,6 +5,7 @@ $user = Auth::user();
 <x-layout>
     <script>
      @auth
+        localStorage.setItem("lessonInfo.bak", localStorage.getItem("lessonInfo"));
         let flags = {
             lessonIdx: {{ $user->lessonIdx }},
             metrics: {

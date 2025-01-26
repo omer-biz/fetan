@@ -42,7 +42,6 @@
                     });
                 });
             }
-
         </script>
     </head>
     <body class="flex flex-col min-h-screen bg-gray-700">
@@ -73,7 +72,7 @@
                     </form>
                     <script>
                      window.logout_form.addEventListener('submit', function(event) {
-                         localStorage.setItem('lessonInfo', '');
+                         localStorage.setItem('lessonInfo', localStorage.getItem('lessonInfo.bak'));
                      });
                     </script>
                     @endauth
