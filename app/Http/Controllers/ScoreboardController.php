@@ -13,7 +13,7 @@ class ScoreboardController extends Controller
      */
     public function leaderBoard(Request $req): View {
         $topScorers = User::query()
-            ->orderBy('score', 'desc')
+            ->orderBy('score_new', 'desc')
             ->take(20)
             ->where('lessonIdx', 4)
             ->get();
