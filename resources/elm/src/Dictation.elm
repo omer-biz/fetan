@@ -102,12 +102,8 @@ randVowel list =
 
 combineGenerators : List (Generator a) -> Generator (List a)
 combineGenerators generators =
-    case generators of
-        [] ->
-            Random.constant []
+    List.foldr (\gen acc -> Random.map2 (::) gen acc) (Random.constant []) generators
 
-        generator :: rest ->
-            Random.map2 (::) generator (combineGenerators rest)
 
 
 randWord : Nonempty Char -> Generator String

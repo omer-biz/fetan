@@ -4,6 +4,17 @@
         <meta charset="utf-8">
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
+        <meta property="og:title" content="Fetan">
+        <meta property="og:description" content="Fetan is a typing practice tool for learning the Amharic keyboard layout.">
+        <meta property="og:image" content="/images/fetan_og_preview.png">
+        <meta property="og:url" content="https://fetan.mesnoy.com">
+        <meta property="og:type" content="website">
+
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="Fetan">
+        <meta name="twitter:description" content="Fetan is a typing practice tool for learning the Amharic keyboard layout.">
+        <meta name="twitter:image" content="https://fetan.mesnoy.com">
+
         <title>ፈጣን</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script>
