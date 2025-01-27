@@ -1,46 +1,48 @@
 deployment:
-  tasks:
-    - export DEPLOYMENT_ROOT=/home/mesnoyqs/fetan.mesnoy.com/
-    - echo "Deployment root is $DEPLOYMENT_ROOT"
+    tasks:
+        - export DEPLOYMENT_ROOT=/home/mesnoyqs/fetan.mesnoy.com/
+        - echo "Deployment root is $DEPLOYMENT_ROOT"
 
-    # Step 1: Set the correct PHP version (adjust the version as needed)
-    - /opt/cpanel/ea-php82/root/usr/bin/php --version
+        # Step 1: Set the correct PHP version (adjust the version as needed)
+        - /opt/cpanel/ea-php82/root/usr/bin/php --version
 
-    # Step 2: Install composer dependencies
-    - /opt/cpanel/composer/bin/composer install
+        # Step 2: Install composer dependencies
+        - /opt/cpanel/composer/bin/composer install
 
-    # Copy Files
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/app/* $DEPLOYMENT_ROOT/app/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/vendor/* $DEPLOYMENT_ROOT/vendor/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/bootstrap/* $DEPLOYMENT_ROOT/bootstrap/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/config/* $DEPLOYMENT_ROOT/config/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/resources/* $DEPLOYMENT_ROOT/resources/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/routes/* $DEPLOYMENT_ROOT/routes/
+        # Copy Files
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/app/* $DEPLOYMENT_ROOT/app/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/vendor/* $DEPLOYMENT_ROOT/vendor/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/bootstrap/* $DEPLOYMENT_ROOT/bootstrap/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/config/* $DEPLOYMENT_ROOT/config/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/resources/* $DEPLOYMENT_ROOT/resources/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/routes/* $DEPLOYMENT_ROOT/routes/
 
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/factories/* $DEPLOYMENT_ROOT/database/factories/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/migrations/* $DEPLOYMENT_ROOT/database/migrations/
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/seeders/* $DEPLOYMENT_ROOT/database/seeders/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/factories/* $DEPLOYMENT_ROOT/database/factories/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/migrations/* $DEPLOYMENT_ROOT/database/migrations/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/database/seeders/* $DEPLOYMENT_ROOT/database/seeders/
 
-    - rm -rf "$$DEPLOYMENT_ROOT/public/build/*"
-    - mkdir -p $DEPLOYMENT_ROOT/public/build/
+        - rm -rf "$$DEPLOYMENT_ROOT/public/build/*"
+        - mkdir -p $DEPLOYMENT_ROOT/public/build/
+        - mkdir -p $DEPLOYMENT_ROOT/public/images/
 
-    - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/public/build/* $DEPLOYMENT_ROOT/public/build/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fetan/public/build/* $DEPLOYMENT_ROOT/public/build/
+        - /bin/cp -f -R /home/mesnoyqs/repositories/fizza/public/images/* $DEPLOYMENT_ROOT/public/images/
 
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/public/index.php $DEPLOYMENT_ROOT/public/index.php
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/public/robots.txt $DEPLOYMENT_ROOT/public/robots.txt
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/public/index.php $DEPLOYMENT_ROOT/public/index.php
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/public/robots.txt $DEPLOYMENT_ROOT/public/robots.txt
 
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/artisan $DEPLOYMENT_ROOT/artisan
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/composer.json $DEPLOYMENT_ROOT/composer.json
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/composer.lock $DEPLOYMENT_ROOT/composer.lock
-    - /bin/cp -f /home/mesnoyqs/repositories/fetan/phpunit.xml $DEPLOYMENT_ROOT/phpunit.xml
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/artisan $DEPLOYMENT_ROOT/artisan
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/composer.json $DEPLOYMENT_ROOT/composer.json
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/composer.lock $DEPLOYMENT_ROOT/composer.lock
+        - /bin/cp -f /home/mesnoyqs/repositories/fetan/phpunit.xml $DEPLOYMENT_ROOT/phpunit.xml
 
-    # Step 4: Run migrations (optional, if needed)
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan migrate --force
+        # Step 4: Run migrations (optional, if needed)
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan migrate --force
 
-    # Step 5: Clear and cache configurations
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan config:clear
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan config:cache
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan route:cache
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan view:cache
+        # Step 5: Clear and cache configurations
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan config:clear
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan config:cache
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan route:cache
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan view:cache
 
-    - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan storage:link
+        - /opt/cpanel/ea-php82/root/usr/bin/php $DEPLOYMENT_ROOT/artisan storage:link
