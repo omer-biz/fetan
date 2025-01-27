@@ -13,7 +13,7 @@
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="Fetan">
         <meta name="twitter:description" content="Fetan is a typing practice tool for learning the Amharic keyboard layout.">
-        <meta name="twitter:image" content="https://fetan.mesnoy.com">
+        <meta name="twitter:image" content="{{ url('/images/fetan_og_preview.png') }}">
 
         <title>ፈጣን</title>
         @vite(['resources/css/app.css', 'resources/js/app.js'])
