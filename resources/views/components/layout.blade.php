@@ -64,7 +64,6 @@
         @endif
         <header class="bg-gray-700 text-white py-4">
             <div class="container mx-auto flex justify-between items-center">
-                <!-- Logo -->
                 <div class="text-2xl font-bold">
                     <a href="{{ route('home') }}" class="hover:text-gray-300 transition">
                         <x-key>ፈ</x-key>
@@ -73,7 +72,6 @@
                     </a>
                 </div>
 
-                <!-- Navigation -->
                 <nav class="flex space-x-6">
                     <a href="{{ route('home') }}" class="text-gray-300 hover:text-white transition">Home</a>
                     <a href="{{ route('scoreboard') }}" class="text-gray-300 hover:text-white transition">Scoreboard</a>
@@ -102,7 +100,6 @@
 
         <footer class="bg-gray-700 text-white py-8">
             <div class="container mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- About Section -->
                 <div>
                     <h3 class="text-xl font-semibold mb-4">About Fetan</h3>
                     <p class="text-gray-300">
@@ -110,7 +107,6 @@
                     </p>
                 </div>
 
-                <!-- Quick Links -->
                 <div>
                     <h3 class="text-xl font-semibold mb-4">Quick Links</h3>
                     <ul>
@@ -121,7 +117,6 @@
                     </ul>
                 </div>
 
-                <!-- Social Media -->
                 <div>
                     <h3 class="text-xl font-semibold mb-4">Follow Us</h3>
                     <div class="flex space-x-4">
@@ -132,7 +127,6 @@
                 </div>
             </div>
 
-            <!-- Bottom Section -->
             <div class="mt-8 border-t border-gray-600 pt-4 text-center text-gray-400 text-sm">
                 © 2025 Fetan. All rights reserved.
             </div>
