@@ -102,7 +102,9 @@ randVowel list =
 
 combineGenerators : List (Generator a) -> Generator (List a)
 combineGenerators generators =
-    List.foldr (\gen acc -> Random.map2 (::) gen acc) (Random.constant []) generators
+    List.foldr
+        (\gen acc -> Random.map2 (::) gen acc)
+        (Random.constant []) generators
 
 
 
