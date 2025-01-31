@@ -10,7 +10,8 @@ import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
-import Layout
+import Layout exposing (KeyAttempt(..))
+import Layouts.SilPowerG as SilPowerG
 import Random
 import Time
 
@@ -42,13 +43,11 @@ type alias Dictation =
     { prev : List Letter
     , current : Letter
     , next : List Letter
-    , try : Maybe Char
-    , done : Bool
     }
 
 
 type LetterState
-    = New
+    = Fresh
     | Wrong
     | Rolling
 
@@ -56,40 +55,43 @@ type LetterState
 type alias Letter =
     { letter : Char
     , state : LetterState
-    , wasWrong : Bool
+    , wasWrong : Bool -- redundent
     }
+
+
+type
+    LayoutType
+    -- if you feel like you know this, yes you do this is exactly enum_dispatch crate
+    -- from Rust.
+    = SilPowerG (Layout.Layout SilPowerG.Model)
 
 
 type alias Keyboard =
     { focusKeyBr : Bool
-    , isShiftPressed : Bool
-    , keys : List (List Key)
+    , modifier : Layout.KeyModifier
+    , layout : LayoutType
+    , keys : List Key
     }
 
 
-type KeyStatus
+type KeyState
     = Pressed
     | Released
 
 
 type alias Key =
     { view : String
-    , altView : String
     , code : String
-    , status : KeyStatus
-    , form : KeyType
+    , state : KeyState
     }
-
-
-type KeyType
-    = Normal
-    | Special { extraStyle : String }
 
 
 type Msg
     = NoOp
     | KeyDown String
     | KeyUp String
+    | ModKeyDown String
+    | ModKeyUp String
     | FocusKeyBr
     | BlurKeyBr
     | NewDict String
@@ -101,7 +103,7 @@ port saveInfo : Encode.Value -> Cmd msg
 
 wordCount : number
 wordCount =
-    15
+    2
 
 
 normalizeLetter : Char -> ( Char, Maybe Char )
@@ -138,18 +140,19 @@ dictGenerators =
 stringToDictation : String -> Dictation
 stringToDictation str =
     case String.uncons str of
+        -- the "\u{0000}" helps solve the off by one error when checking if the dictation is done
         Just ( curr, next ) ->
-            Dictation (lettersFromString "") (Letter curr New False) (lettersFromString next) Nothing False
+            Dictation (lettersFromString "") (Letter curr Fresh False) (lettersFromString (next ++ "\u{0000}"))
 
         Nothing ->
-            Dictation (lettersFromString "?") (Letter '?' New False) (lettersFromString "?") Nothing False
+            Dictation (lettersFromString "?") (Letter '?' Fresh False) (lettersFromString "?")
 
 
 lettersFromString : String -> List Letter
 lettersFromString str =
     str
         |> String.toList
-        |> List.map (\l -> Letter l New False)
+        |> List.map (\l -> Letter l Fresh False)
 
 
 specialKeys : Dict String String
@@ -171,42 +174,22 @@ specialKeys =
         ]
 
 
-toKey : ( String, String, String ) -> Key
-toKey ( v, a, c ) =
-    specialKeys
-        |> Dict.get c
-        |> Maybe.andThen (\s -> Just (Key v a c Released <| Special { extraStyle = s }))
-        |> Maybe.withDefault (Key v a c Released Normal)
-
-
-createList : List ( String, String, String ) -> List Key
-createList keyList =
-    keyList
-        |> List.map toKey
-
-
-layoutToList : List (List ( String, String, String )) -> List (List Key)
-layoutToList layout =
-    layout
-        |> List.map createList
-
-
-find : (a -> Bool) -> List a -> Maybe a
-find predicate list =
+updateFirstOccurrence : (a -> Bool) -> (a -> a) -> List a -> List a
+updateFirstOccurrence predicate modVal list =
     let
-        helper remainingList =
-            case remainingList of
+        helper seen remaining =
+            case remaining of
                 [] ->
-                    Nothing
+                    List.reverse seen
 
                 x :: xs ->
                     if predicate x then
-                        Just x
+                        List.reverse seen ++ (modVal x :: xs)
 
                     else
-                        helper xs
+                        helper (x :: seen) xs
     in
-    helper list
+    helper [] list
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -223,6 +206,22 @@ update msg model =
 
         metrics =
             info.metrics
+
+        curLayout =
+            case keyboard.layout of
+                SilPowerG l ->
+                    l
+
+        updateKey key state =
+            updateFirstOccurrence
+                (\k -> key == k.code)
+                (\k -> { k | state = state })
+                keyboard.keys
+
+        selectedLayout =
+            case keyboard.layout of
+                SilPowerG _ ->
+                    SilPowerG
     in
     case msg of
         FocusKeyBr ->
@@ -232,109 +231,97 @@ update msg model =
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown key ->
-            let
-                updatedKeys =
-                    updateKeyStatus Pressed key model.keyboard.keys
-
-                shiftDown =
-                    if key == "ShiftLeft" || key == "ShiftRight" then
-                        True
-
-                    else
-                        model.keyboard.isShiftPressed
-            in
-            ( { model
-                | keyboard =
-                    { keyboard
-                        | keys = updatedKeys
-                        , isShiftPressed = shiftDown
-                    }
-              }
-            , Cmd.none
-            )
+            ( { model | keyboard = { keyboard | keys = updateKey key Pressed } }, Cmd.none )
 
         KeyUp key ->
             let
-                updated =
-                    updateKeyStatus Released key keyboard.keys
-
-                shiftUp =
-                    if key == "ShiftLeft" || key == "ShiftRight" then
-                        False
-
-                    else
-                        keyboard.isShiftPressed
-
-                altViewOrView : Key -> Bool
-                altViewOrView k =
-                    k.code == key
-
-                extractLetter k =
-                    if keyboard.isShiftPressed then
-                        k.altView
-
-                    else
-                        k.view
-
-                acctualLetter =
-                    keyboard.keys
-                        |> List.concat
-                        |> find altViewOrView
-                        |> Maybe.map extractLetter
-
-                updatedDict =
-                    case acctualLetter of
-                        Just tryKey ->
-                            case String.uncons tryKey of
-                                Just ( tk, "" ) ->
-                                    updateDictState tk model.dictation
-
-                                _ ->
-                                    model.dictation
-
-                        _ ->
-                            model.dictation
-
-                nextLessonIdx =
-                    if
-                        updatedDict.done
-                            == True
-                            && metrics.speed.old
-                            > 80
-                            && metrics.speed.new
-                            > 80
-                            && metrics.accuracy.new
-                            > 80
-                            && (info.lessonIdx + 1 < Array.length dictGenerators)
-                    then
-                        info.lessonIdx + 1
-
-                    else
-                        info.lessonIdx
-
-                genNewDict =
-                    if updatedDict.done == True then
-                        dictGenerators
-                            |> Array.get nextLessonIdx
-                            |> Maybe.withDefault DictGen.consonantOne
-                            |> DictGen.genFromList wordCount
-                            |> Random.generate NewDict
-
-                    else
-                        Cmd.none
+                ( dict, layout ) =
+                    updateDictation key keyboard.modifier curLayout dictation
             in
             ( { model
-                | keyboard =
-                    { keyboard
-                        | keys = updated
-                        , isShiftPressed = shiftUp
-                    }
-                , dictation = updatedDict
-                , info = { info | lessonIdx = nextLessonIdx }
+                -- TODO: Change SilPowerG type based on the currently selected layout
+                | keyboard = { keyboard | keys = updateKey key Released, layout = selectedLayout layout }
+                , dictation = dict
               }
-            , genNewDict
+            , if List.isEmpty dict.next then
+                dictGenerators
+                    |> Array.get (info.lessonIdx + 1)
+                    |> Maybe.withDefault DictGen.consonantOne
+                    |> DictGen.genFromList wordCount
+                    |> Random.generate NewDict
+
+              else
+                Cmd.none
             )
 
+        -- KeyUp key ->
+        --     let
+        --         updated =
+        --             updateKeyStatus Released key keyboard.keys
+        --         shiftUp =
+        --             if key == "ShiftLeft" || key == "ShiftRight" then
+        --                 False
+        --             else
+        --                 keyboard.isShiftPressed
+        --         altViewOrView : Key -> Bool
+        --         altViewOrView k =
+        --             k.code == key
+        --         extractLetter k =
+        --             if keyboard.isShiftPressed then
+        --                 k.altView
+        --             else
+        --                 k.view
+        --         acctualLetter =
+        --             keyboard.keys
+        --                 |> List.concat
+        --                 |> find altViewOrView
+        --                 |> Maybe.map extractLetter
+        --         updatedDict =
+        --             case acctualLetter of
+        --                 Just tryKey ->
+        --                     case String.uncons tryKey of
+        --                         Just ( tk, "" ) ->
+        --                             updateDictState tk model.dictation
+        --                         _ ->
+        --                             model.dictation
+        --                 _ ->
+        --                     model.dictation
+        --         nextLessonIdx =
+        --             if
+        --                 updatedDict.done
+        --                     == True
+        --                     && metrics.speed.old
+        --                     > 80
+        --                     && metrics.speed.new
+        --                     > 80
+        --                     && metrics.accuracy.new
+        --                     > 80
+        --                     && (info.lessonIdx + 1 < Array.length dictGenerators)
+        --             then
+        --                 info.lessonIdx + 1
+        --             else
+        --                 info.lessonIdx
+        --         genNewDict =
+        --             if updatedDict.done == True then
+        --                 dictGenerators
+        --                     |> Array.get nextLessonIdx
+        --                     |> Maybe.withDefault DictGen.consonantOne
+        --                     |> DictGen.genFromList wordCount
+        --                     |> Random.generate NewDict
+        --             else
+        --                 Cmd.none
+        --     in
+        --     ( { model
+        --         | keyboard =
+        --             { keyboard
+        --                 | keys = updated
+        --                 , isShiftPressed = shiftUp
+        --             }
+        --         , dictation = updatedDict
+        --         , info = { info | lessonIdx = nextLessonIdx }
+        --       }
+        --     , genNewDict
+        --     )
         NewDict dict ->
             let
                 allChars =
@@ -375,8 +362,89 @@ update msg model =
         Tick _ ->
             ( { model | time = model.time + 1 }, Cmd.none )
 
-        NoOp ->
+        ModKeyDown key ->
+            let
+                newState =
+                    Layout.keyModDown key keyboard.modifier
+
+                keys =
+                    -- every time the user presses the mod keys the printer gets called 47
+                    -- times it's either this or storing the key views for plain, Shift, CapsLock, and ShiftCapslock
+                    -- the classic tradeoff "storage or cpu". We will see.
+                    -- I just hope the layout authors will not write heavy "printers"
+                    keyboard.keys
+                        |> List.map (\k -> { k | view = curLayout.printer newState k.code })
+            in
+            ( { model
+                | keyboard =
+                    { keyboard | modifier = newState, keys = keys }
+              }
+            , Cmd.none
+            )
+
+        ModKeyUp key ->
+            let
+                newState =
+                    Layout.keyModUp key keyboard.modifier
+
+                keys =
+                    -- same here: read the prev comment
+                    keyboard.keys
+                        |> List.map (\k -> { k | view = curLayout.printer newState k.code })
+            in
+            ( { model
+                | keyboard =
+                    { keyboard | modifier = newState, keys = keys }
+              }
+            , Cmd.none
+            )
+
+        _ ->
             ( model, Cmd.none )
+
+
+updateDictation :
+    String
+    -> Layout.KeyModifier
+    -> Layout.Layout a
+    -> Dictation
+    -> ( Dictation, Layout.Layout a )
+updateDictation codePoint keybrState layout dictation =
+    let
+        current =
+            dictation.current
+
+        advanceDictation =
+            case dictation.next of
+                newCurr :: next ->
+                    { dictation
+                        | next = next
+                        , current = newCurr
+                        , prev = dictation.prev ++ [ dictation.current ]
+                    }
+
+                [] ->
+                    dictation
+
+        wrongAttempt =
+            { dictation | current = { current | state = Wrong, wasWrong = True } }
+
+        rollingCurrent =
+            { current | state = Rolling }
+    in
+    case layout.judge keybrState codePoint dictation.current.letter layout.state of
+        Layout.Partial s ->
+            ( { dictation | current = rollingCurrent }, { layout | state = s } )
+
+        Layout.Correct ->
+            ( advanceDictation, layout )
+
+        Layout.Wrong ->
+            if codePoint == "Space" then
+                ( advanceDictation, layout )
+
+            else
+                ( wrongAttempt, layout )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -404,75 +472,6 @@ updateScore metrics =
             { old = metrics.score.new, new = metrics.score.old + metrics.speed.new + metrics.accuracy.new }
     in
     { metrics | score = score }
-
-
-updateDictState : Char -> Dictation -> Dictation
-updateDictState tryKey dict =
-    let
-        current =
-            dict.current
-
-        toNextChar =
-            case dict.next of
-                newCurr :: next ->
-                    { dict
-                        | next = next
-                        , current = newCurr
-                        , prev = dict.prev ++ [ current ]
-                    }
-
-                [] ->
-                    { dict | done = True }
-
-        tkUnicode =
-            Char.toCode tryKey
-
-        clUnicode =
-            Char.toCode current.letter
-
-        wrongAttempt st =
-            { dict | try = Nothing, current = { current | state = st, wasWrong = True } }
-    in
-    if tryKey == current.letter then
-        toNextChar
-
-    else if tkUnicode >= 0x12A1 && tkUnicode <= 0x12A7 then
-        -- if it's a vowel
-        case dict.try of
-            Just incomplete ->
-                if Char.toCode incomplete + (tkUnicode - 0x12A0) == clUnicode then
-                    toNextChar
-
-                else
-                    wrongAttempt Wrong
-
-            Nothing ->
-                wrongAttempt Wrong
-
-    else if (clUnicode - tkUnicode) > 0 && (clUnicode - tkUnicode) <= 7 then
-        { dict
-            | try = Just tryKey
-            , current = { current | state = Rolling }
-        }
-
-    else
-        wrongAttempt Wrong
-
-
-updateKeyStatus : KeyStatus -> String -> List (List Key) -> List (List Key)
-updateKeyStatus s key keys =
-    let
-        findKey k =
-            if k.code == key then
-                { k | status = s }
-
-            else
-                k
-
-        modKey row =
-            List.map findKey row
-    in
-    List.map modKey keys
 
 
 view : Model -> Html Msg
@@ -622,6 +621,29 @@ viewKeyBoard keyboard =
 
             else
                 text ""
+
+        firstRow =
+            List.take 13 keyboard.keys
+                |> List.map viewKey
+                |> viewRow
+
+        secondRow =
+            List.drop 13 keyboard.keys
+                |> List.take 13
+                |> List.map viewKey
+                |> viewRow
+
+        thirdRow =
+            List.drop 26 keyboard.keys
+                |> List.take 11
+                |> List.map viewKey
+                |> viewRow
+
+        fourthRow =
+            List.drop 37 keyboard.keys
+                |> List.take 10
+                |> List.map viewKey
+                |> viewRow
     in
     div
         [ class <| "border-2 p-6 rounded border-gray-500 relative"
@@ -631,51 +653,32 @@ viewKeyBoard keyboard =
         , keyDown NoOp
         , keyUp NoOp
         ]
-        (keyboard.keys
-            |> List.map (viewRow keyboard.isShiftPressed)
-            |> (::) isfocused
-        )
+        [ firstRow
+        , secondRow
+        , thirdRow
+        , fourthRow
+        , isfocused
+        ]
 
 
-viewRow : Bool -> List Key -> Html Msg
-viewRow shiftOn row =
-    div [ class "flex justify-center gap-1 py-1" ]
-        (row
-            |> List.map (viewKey shiftOn)
-        )
+viewRow : List (Html msg) -> Html msg
+viewRow row =
+    div [ class "flex justify-center gap-1 py-1" ] row
 
 
-viewKey : Bool -> Key -> Html Msg
-viewKey shiftOn key =
+viewKey : Key -> Html msg
+viewKey key =
     let
-        isPressed =
-            case key.status of
-                Released ->
-                    "bg-gray-600"
-
+        bg =
+            case key.state of
                 Pressed ->
                     "bg-lime-500"
 
-        keyWidth =
-            case key.form of
-                Normal ->
-                    "w-12"
-
-                Special f ->
-                    f.extraStyle
-
-        keyView =
-            if shiftOn then
-                key.altView
-
-            else
-                key.view
+                Released ->
+                    "bg-gray-600"
     in
-    div
-        [ class <|
-            String.join " " [ "relative z-10 px-4 py-2 text-white text-center rounded shadow font-semibold", keyWidth, isPressed ]
-        ]
-        [ text keyView
+    div [ class <| bg ++ " relative z-10 x-4 py-2 text-white text-center rounded shadow font-semibold w-12" ]
+        [ text key.view
         , if key.code == "KeyF" || key.code == "KeyJ" then
             span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
 
@@ -694,8 +697,8 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.keyboard.focusKeyBr then
         Sub.batch
-            [ onKeyDown <| Decode.map KeyDown keyDecoder
-            , onKeyUp <| Decode.map KeyUp keyDecoder
+            [ onKeyDown <| Decode.map dispatchDown keyDecoder
+            , onKeyUp <| Decode.map dispatchUp keyDecoder
             , Time.every 1000 Tick
             ]
 
@@ -703,17 +706,48 @@ subscriptions model =
         Sub.none
 
 
+modifierKeys : List String
+modifierKeys =
+    [ "ShiftLeft", "ShiftRight", "CapsLock" ]
+
+
+dispatchHelper : (String -> Msg) -> (String -> Msg) -> String -> Msg
+dispatchHelper modMsg regularMsg key =
+    if List.member key modifierKeys then
+        modMsg key
+
+    else
+        regularMsg key
+
+
+dispatchDown : String -> Msg
+dispatchDown =
+    dispatchHelper ModKeyDown KeyDown
+
+
+dispatchUp : String -> Msg
+dispatchUp =
+    dispatchHelper ModKeyUp KeyUp
+
+
 keyDecoder : Decode.Decoder String
 keyDecoder =
-    Decode.map (\a -> a) <|
+    Decode.map (\code -> code) <|
         Decode.field "code" Decode.string
 
 
 init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
+        curLayout =
+            SilPowerG.layout
+
+        keys =
+            Layout.codePoints
+                |> List.map (\e -> Key (curLayout.printer Layout.NoModifier e) e Released)
+
         keyboard =
-            Keyboard False False (layoutToList Layout.silPowerG)
+            Keyboard False Layout.NoModifier (SilPowerG SilPowerG.layout) keys
 
         info =
             case Decode.decodeValue infoDecoder flags of

@@ -1,150 +1,144 @@
-module Layout exposing (isVowel, qwerty, silPowerG)
+module Layout exposing (Judge, KeyAttempt(..), KeyModifier(..), Layout, codePoints, keyModDown, keyModUp)
 
 
-qwerty : List (List ( String, String, String ))
-qwerty =
-    -- ("view", "shiftView", "code")
-    [ [ ( "`", "~", "Backquote" )
-      , ( "1", "!", "Digit1" )
-      , ( "2", "@", "Digit2" )
-      , ( "3", "#", "Digit3" )
-      , ( "4", "$", "Digit4" )
-      , ( "5", "%", "Digit5" )
-      , ( "6", "^", "Digit6" )
-      , ( "7", "&", "Digit7" )
-      , ( "8", "*", "Digit8" )
-      , ( "9", "(", "Digit9" )
-      , ( "0", ")", "Digit0" )
-      , ( "-", "_", "Minus" )
-      , ( "=", "+", "Equal" )
-      , ( "⌫", "⌫", "Backspace" )
-      ]
-    , [ ( "⇥", "⇥", "Tab" )
-      , ( "q", "Q", "KeyQ" )
-      , ( "w", "W", "KeyW" )
-      , ( "e", "E", "KeyE" )
-      , ( "r", "R", "KeyR" )
-      , ( "t", "T", "KeyT" )
-      , ( "y", "Y", "KeyY" )
-      , ( "u", "U", "KeyU" )
-      , ( "i", "I", "KeyI" )
-      , ( "o", "O", "KeyO" )
-      , ( "p", "P", "KeyP" )
-      , ( "[", "{", "BracketLeft" )
-      , ( "]", "}", "BracketRight" )
-      , ( "\\", "|", "Backslash" )
-      ]
-    , [ ( "⇪ Caps", "⇪ Caps", "CapsLock" )
-      , ( "a", "A", "KeyA" )
-      , ( "s", "S", "KeyS" )
-      , ( "d", "D", "KeyD" )
-      , ( "f", "F", "KeyF" )
-      , ( "g", "G", "KeyG" )
-      , ( "h", "H", "KeyH" )
-      , ( "j", "J", "KeyJ" )
-      , ( "k", "K", "KeyK" )
-      , ( "l", "L", "KeyL" )
-      , ( ";", ":", "Semicolon" )
-      , ( "'", "\"", "Quote" )
-      , ( "⏎", "⏎", "Enter" )
-      ]
-    , [ ( "SHIFT", "SHIFT", "ShiftLeft" )
-      , ( "z", "Z", "KeyZ" )
-      , ( "x", "X", "KeyX" )
-      , ( "c", "C", "KeyC" )
-      , ( "v", "V", "KeyV" )
-      , ( "b", "B", "KeyB" )
-      , ( "n", "N", "KeyN" )
-      , ( "m", "M", "KeyM" )
-      , ( ",", "<", "Comma" )
-      , ( ".", ">", "Period" )
-      , ( "/", "?", "Slash" )
-      , ( "SHIFT", "SHIFT", "ShiftRight" )
-      ]
-    , [ ( "CTRL", "CTRL", "ControlLeft" )
-      , ( "ALT", "ALT", "AltLeft" )
-      , ( " ", " ", "Space" )
-      , ( "ALT", "ALT", "AltRight" )
-      , ( "CTRL", "CTRL", "ControlRight" )
-      ]
+type KeyModifier
+    = NoModifier
+    | CapsLock
+    | Shift
+    | ShiftCapsLock
+
+
+type KeyAttempt state
+    = Wrong
+    | Correct
+    | Partial state
+
+
+type alias Judge state =
+    KeyModifier -> String -> Char -> state -> KeyAttempt state
+
+
+type alias Printer =
+    KeyModifier -> String -> String
+
+
+type alias Layout state =
+    { printer : Printer
+    , judge : Judge state
+    , state : state
+    }
+
+
+shiftDown : KeyModifier -> KeyModifier
+shiftDown mod =
+    case mod of
+        CapsLock ->
+            ShiftCapsLock
+
+        NoModifier ->
+            Shift
+
+        _ ->
+            mod
+
+
+shiftUp : KeyModifier -> KeyModifier
+shiftUp mod =
+    case mod of
+        ShiftCapsLock ->
+            CapsLock
+
+        Shift ->
+            NoModifier
+
+        _ ->
+            mod
+
+
+capsFlip : KeyModifier -> KeyModifier
+capsFlip mod =
+    case mod of
+        ShiftCapsLock ->
+            Shift
+
+        NoModifier ->
+            CapsLock
+
+        CapsLock ->
+            NoModifier
+
+        Shift ->
+            ShiftCapsLock
+
+
+keyModDown : String -> KeyModifier -> KeyModifier
+keyModDown key modifier =
+    if key == "ShiftLeft" || key == "ShiftRight" then
+        shiftDown modifier
+
+    else
+        modifier
+
+
+keyModUp : String -> KeyModifier -> KeyModifier
+keyModUp key modifier =
+    if key == "ShiftLeft" || key == "ShiftRight" then
+        shiftUp modifier
+
+    else if key == "CapsLock" then
+        capsFlip modifier
+
+    else
+        modifier
+
+
+codePoints : List String
+codePoints =
+    [ "Backquote"
+    , "Digit1"
+    , "Digit2"
+    , "Digit3"
+    , "Digit4"
+    , "Digit5"
+    , "Digit6"
+    , "Digit7"
+    , "Digit8"
+    , "Digit9"
+    , "Digit0"
+    , "Minus"
+    , "Equal"
+    , "KeyQ"
+    , "KeyW"
+    , "KeyE"
+    , "KeyR"
+    , "KeyT"
+    , "KeyY"
+    , "KeyU"
+    , "KeyI"
+    , "KeyO"
+    , "KeyP"
+    , "BracketLeft"
+    , "BracketRight"
+    , "Backslash"
+    , "KeyA"
+    , "KeyS"
+    , "KeyD"
+    , "KeyF"
+    , "KeyG"
+    , "KeyH"
+    , "KeyJ"
+    , "KeyK"
+    , "KeyL"
+    , "Semicolon"
+    , "Quote"
+    , "KeyZ"
+    , "KeyX"
+    , "KeyC"
+    , "KeyV"
+    , "KeyB"
+    , "KeyN"
+    , "KeyM"
+    , "Comma"
+    , "Period"
+    , "Slash"
     ]
-
-
-silPowerG : List (List ( String, String, String ))
-silPowerG =
-    -- ("view", "shiftView", "code")
-    [ [ ( "`", "~", "Backquote" )
-      , ( "1", "!", "Digit1" )
-      , ( "2", "@", "Digit2" )
-      , ( "3", "#", "Digit3" )
-      , ( "4", "$", "Digit4" )
-      , ( "5", "%", "Digit5" )
-      , ( "6", "^", "Digit6" )
-      , ( "7", "&", "Digit7" )
-      , ( "8", "*", "Digit8" )
-      , ( "9", "(", "Digit9" )
-      , ( "0", ")", "Digit0" )
-      , ( "-", "_", "Minus" )
-      , ( "=", "+", "Equal" )
-      , ( "⌫", "⌫", "Backspace" )
-      ]
-    , [ ( "⇥", "⇥", "Tab" )
-      , ( "ቀ", "ቐ", "KeyQ" )
-      , ( "ወ", "ኧ", "KeyW" )
-      , ( "እ", "ዕ", "KeyE" )
-      , ( "ረ", " ", "KeyR" )
-      , ( "ተ", "ጠ", "KeyT" )
-      , ( "ኤ", "የ", "KeyY" )
-      , ( "ኡ", "ዑ", "KeyU" )
-      , ( "ኢ", "ዒ", "KeyI" )
-      , ( "ኦ", "ዖ", "KeyO" )
-      , ( "ፐ", "ጰ", "KeyP" )
-      , ( "[", "{", "BracketLeft" )
-      , ( "]", "}", "BracketRight" )
-      , ( "\\", "|", "Backslash" )
-      ]
-    , [ ( "⇪ Caps", "⇪ Caps", "CapsLock" )
-      , ( "ኣ", "ዓ", "KeyA" )
-      , ( "ሰ", "ሸ", "KeyS" )
-      , ( "ደ", "ዸ", "KeyD" )
-      , ( "ፈ", "ጸ", "KeyF" )
-      , ( "ገ", "ጘ", "KeyG" )
-      , ( "ሀ", "ሐ", "KeyH" )
-      , ( "ጀ", "ሠ", "KeyJ" )
-      , ( "ከ", "ኸ", "KeyK" )
-      , ( "ለ", "ኀ", "KeyL" )
-      , ( "፤", "፡", "Semicolon" )
-      , ( "'", "\"", "Quote" )
-      , ( "⏎", "⏎", "Enter" )
-      ]
-    , [ ( "SHIFT", "SHIFT", "ShiftLeft" )
-      , ( "ዘ", "ዠ", "KeyZ" )
-      , ( "አ", "ዐ", "KeyX" )
-      , ( "ቸ", "ጨ", "KeyC" )
-      , ( "ቨ", "ፀ", "KeyV" )
-      , ( "በ", "", "KeyB" )
-      , ( "ነ", "ኘ", "KeyN" )
-      , ( "መ", "", "KeyM" )
-      , ( "፥", "<", "Comma" )
-      , ( "።", ">", "Period" )
-      , ( "/", "?", "Slash" )
-      , ( "SHIFT", "SHIFT", "ShiftRight" )
-      ]
-    , [ ( "CTRL", "CTRL", "ControlLeft" )
-      , ( "ALT", "ALT", "AltLeft" )
-      , ( " ", " ", "Space" )
-      , ( "ALT", "ALT", "AltRight" )
-      , ( "CTRL", "CTRL", "ControlRight" )
-      ]
-    ]
-
-
-
-
-isVowel : Char -> Bool
-isVowel c =
-    let
-        code =
-            Char.toCode c
-    in
-    code >= 0x12A1 && code <= 0x12A7
