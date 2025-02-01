@@ -10,7 +10,7 @@ import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
-import Layout exposing (KeyAttempt(..))
+import Layout exposing (KeyAttempt(..), KeyModifier(..))
 import Layouts.SilPowerG as SilPowerG
 import Random
 import Time
@@ -100,7 +100,7 @@ port saveInfo : Encode.Value -> Cmd msg
 
 wordCount : number
 wordCount =
-    2
+    10
 
 
 dictGenerators : Array (DictGen.Nonempty Char)
@@ -130,7 +130,7 @@ specialKeys : Dict String String
 specialKeys =
     Dict.fromList
         [ ( "Tab", "flex-grow" )
-        , ( "CapsLock", "w-24" )
+        , ( "Capslock", "w-20" )
         , ( "ShiftLeft", "flex-grow" )
         , ( "ShiftRight", "flex-grow" )
         , ( "ControlLeft", "w-20" )
@@ -201,15 +201,33 @@ update msg model =
             let
                 ( dict, layout ) =
                     updateDictation key keyboard.modifier keyboard.layout dictation
+
+                nextLessonIdx =
+                    if
+                        List.isEmpty dict.next
+                            == True
+                            && metrics.speed.old
+                            > 80
+                            && metrics.speed.new
+                            > 80
+                            && metrics.accuracy.new
+                            > 80
+                            && (info.lessonIdx + 1 < Array.length dictGenerators)
+                    then
+                        info.lessonIdx + 1
+
+                    else
+                        info.lessonIdx
             in
             ( { model
                 -- TODO: Change SilPowerG type based on the currently selected layout
                 | keyboard = { keyboard | keys = updateKey key Released, layout = layout }
                 , dictation = dict
+                , info = { info | lessonIdx = nextLessonIdx }
               }
             , if List.isEmpty dict.next then
                 dictGenerators
-                    |> Array.get (info.lessonIdx + 1)
+                    |> Array.get nextLessonIdx
                     |> Maybe.withDefault DictGen.consonantOne
                     |> DictGen.genFromList wordCount
                     |> Random.generate NewDict
@@ -218,74 +236,6 @@ update msg model =
                 Cmd.none
             )
 
-        -- KeyUp key ->
-        --     let
-        --         updated =
-        --             updateKeyStatus Released key keyboard.keys
-        --         shiftUp =
-        --             if key == "ShiftLeft" || key == "ShiftRight" then
-        --                 False
-        --             else
-        --                 keyboard.isShiftPressed
-        --         altViewOrView : Key -> Bool
-        --         altViewOrView k =
-        --             k.code == key
-        --         extractLetter k =
-        --             if keyboard.isShiftPressed then
-        --                 k.altView
-        --             else
-        --                 k.view
-        --         acctualLetter =
-        --             keyboard.keys
-        --                 |> List.concat
-        --                 |> find altViewOrView
-        --                 |> Maybe.map extractLetter
-        --         updatedDict =
-        --             case acctualLetter of
-        --                 Just tryKey ->
-        --                     case String.uncons tryKey of
-        --                         Just ( tk, "" ) ->
-        --                             updateDictState tk model.dictation
-        --                         _ ->
-        --                             model.dictation
-        --                 _ ->
-        --                     model.dictation
-        --         nextLessonIdx =
-        --             if
-        --                 updatedDict.done
-        --                     == True
-        --                     && metrics.speed.old
-        --                     > 80
-        --                     && metrics.speed.new
-        --                     > 80
-        --                     && metrics.accuracy.new
-        --                     > 80
-        --                     && (info.lessonIdx + 1 < Array.length dictGenerators)
-        --             then
-        --                 info.lessonIdx + 1
-        --             else
-        --                 info.lessonIdx
-        --         genNewDict =
-        --             if updatedDict.done == True then
-        --                 dictGenerators
-        --                     |> Array.get nextLessonIdx
-        --                     |> Maybe.withDefault DictGen.consonantOne
-        --                     |> DictGen.genFromList wordCount
-        --                     |> Random.generate NewDict
-        --             else
-        --                 Cmd.none
-        --     in
-        --     ( { model
-        --         | keyboard =
-        --             { keyboard
-        --                 | keys = updated
-        --                 , isShiftPressed = shiftUp
-        --             }
-        --         , dictation = updatedDict
-        --         , info = { info | lessonIdx = nextLessonIdx }
-        --       }
-        --     , genNewDict
-        --     )
         NewDict dict ->
             let
                 allChars =
@@ -325,28 +275,18 @@ update msg model =
 
         Tick _ ->
             let
-                hint =
+                hints =
                     Maybe.map (\h -> h dictation.current.letter curLayout.partial) curLayout.hint
                         |> Maybe.andThen identity
+                        |> htoList
 
-                ht hin key =
-                    if key.code == Tuple.second hin then
-                        { key | state = Hinted }
-
-                    else
-                        key
-
-                hintToList =
-                    case hint of
-                        Just h ->
-                            List.map (ht h) keyboard.keys
-
-                        Nothing ->
-                            keyboard.keys
+                hintedToList =
+                    keyboard.keys
+                        |> List.map (hintMod hints)
 
                 keys =
                     if model.lastKeyEvent == 5 then
-                        hintToList
+                        hintedToList
 
                     else
                         keyboard.keys
@@ -370,11 +310,21 @@ update msg model =
                     -- the classic tradeoff "storage or cpu". We will see.
                     -- I just hope the layout authors will not write heavy "printers"
                     keyboard.keys
-                        |> List.map (\k -> { k | view = curLayout.printer newState k.code })
+                        |> List.map
+                            (\k ->
+                                if List.member k.code modifierKeys then
+                                    if k.code == key then
+                                        { k | state = Pressed }
+
+                                    else
+                                        k
+
+                                else
+                                    { k | view = curLayout.printer newState k.code }
+                            )
             in
             ( { model
-                | keyboard =
-                    { keyboard | modifier = newState, keys = keys }
+                | keyboard = { keyboard | modifier = newState, keys = keys }
               }
             , Cmd.none
             )
@@ -387,17 +337,73 @@ update msg model =
                 keys =
                     -- same here: read the prev comment
                     keyboard.keys
-                        |> List.map (\k -> { k | view = curLayout.printer newState k.code })
+                        |> List.map
+                            (\k ->
+                                if List.member k.code modifierKeys then
+                                    { k | state = Released }
+
+                                else
+                                    { k | view = curLayout.printer newState k.code }
+                            )
             in
             ( { model
-                | keyboard =
-                    { keyboard | modifier = newState, keys = keys }
+                | keyboard = { keyboard | modifier = newState, keys = keys }
               }
             , Cmd.none
             )
 
         _ ->
             ( model, Cmd.none )
+
+
+hintMod : List String -> Key -> Key
+hintMod hints key =
+    if List.member key.code hints then
+        { key | state = Hinted }
+
+    else
+        key
+
+
+bestShiftForKey : String -> String
+bestShiftForKey key =
+    let
+        letter =
+            String.dropLeft 3 key
+
+        leftHandKeys =
+            [ "Q", "W", "E", "R", "T", "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" ]
+    in
+    if List.member letter leftHandKeys then
+        "ShiftRight"
+
+    else
+        "ShiftLeft"
+
+
+htoList : Maybe ( KeyModifier, String ) -> List String
+htoList hint =
+    let
+        modToCode mod code =
+            case mod of
+                NoModifier ->
+                    []
+
+                CapsLock ->
+                    [ "Capslock" ]
+
+                Shift ->
+                    [ bestShiftForKey code ]
+
+                ShiftCapsLock ->
+                    [ "ShiftRight", "Capslock" ]
+    in
+    case hint of
+        Just ( mod, code ) ->
+            code :: modToCode mod code
+
+        Nothing ->
+            []
 
 
 updateDictation :
@@ -437,7 +443,7 @@ updateDictation codePoint keybrState layout dictation =
             ( advanceDictation, { layout | partial = Nothing } )
 
         Layout.Wrong ->
-            ( wrongAttempt, layout )
+            ( wrongAttempt, { layout | partial = Nothing } )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -471,20 +477,19 @@ view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
         [ div []
-            [ viewInfo model.info model.dictation.current.letter model.keyboard.layout
+            [ viewInfo model.info
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
             ]
         ]
 
 
-viewInfo : Info -> Char -> Layout.Layout -> Html Msg
-viewInfo info curr layout =
+viewInfo : Info -> Html Msg
+viewInfo info =
     table [ class "font-mono mb-8" ]
         [ tbody []
             [ viewMetrics info.metrics
             , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
-            , tr [] [ td [ class "pr-2 text-right" ] [ text "Key Combo:" ], viewHint curr layout ]
             ]
         ]
 
@@ -501,34 +506,6 @@ viewCurrentKeys idx =
         |> DictGen.toList
         |> List.map viewK
         |> td [ class "font-am" ]
-
-
-viewHint : Char -> Layout.Layout -> Html msg
-viewHint curr layout =
-    let
-        helper =
-            layout.hint
-                |> Maybe.map (\hint -> hint curr layout.partial)
-                |> Maybe.andThen identity
-                |> showHint
-
-        showHint hint =
-            case hint of
-                Just ( modifier, key ) ->
-                    key
-                        ++ " "
-                        ++ (case Layout.modifierToString modifier of
-                                Just mod ->
-                                    " + " ++ mod
-
-                                Nothing ->
-                                    ""
-                           )
-
-                Nothing ->
-                    "No Hint"
-    in
-    span [ class "font-am font-bold underline" ] [ text helper ]
 
 
 viewMetrics : Metrics -> Html msg
@@ -623,25 +600,25 @@ viewKeyBoard keyboard =
                 text ""
 
         firstRow =
-            List.take 13 keyboard.keys
+            List.take 14 keyboard.keys
                 |> List.map viewKey
                 |> viewRow
 
         secondRow =
-            List.drop 13 keyboard.keys
+            List.drop 14 keyboard.keys
                 |> List.take 13
                 |> List.map viewKey
                 |> viewRow
 
         thirdRow =
-            List.drop 26 keyboard.keys
-                |> List.take 11
+            List.drop 27 keyboard.keys
+                |> List.take 12
                 |> List.map viewKey
                 |> viewRow
 
         fourthRow =
-            List.drop 37 keyboard.keys
-                |> List.take 10
+            List.drop 39 keyboard.keys
+                |> List.take 5
                 |> List.map viewKey
                 |> viewRow
     in
@@ -663,7 +640,7 @@ viewKeyBoard keyboard =
 
 viewRow : List (Html msg) -> Html msg
 viewRow row =
-    div [ class "flex justify-center gap-1 py-1" ] row
+    div [ class "flex gap-1 py-1" ] row
 
 
 viewKey : Key -> Html msg
@@ -678,9 +655,18 @@ viewKey key =
                     "bg-gray-600"
 
                 Hinted ->
-                    "bg-gray-300 text-black animate-pulse opacity-100"
+                    "bg-gray-300 text-black animate-pulse"
+
+        extraStyle =
+            Dict.get key.code specialKeys
+                |> Maybe.withDefault ""
     in
-    div [ class <| " relative z-10 x-4 py-2 text-white text-center rounded shadow font-semibold w-12 " ++ bg ]
+    div
+        [ class <|
+            String.join
+                " "
+                [ "relative z-10 x-4 py-2 text-center rounded shadow font-semibold w-12", bg, extraStyle ]
+        ]
         [ text key.view
         , if key.code == "KeyF" || key.code == "KeyJ" then
             span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
@@ -711,7 +697,7 @@ subscriptions model =
 
 modifierKeys : List String
 modifierKeys =
-    [ "ShiftLeft", "ShiftRight", "CapsLock" ]
+    [ "ShiftLeft", "ShiftRight", "Capslock", "ControlRight", "ControlLeft", "AltRight", "AltLeft", "Tab", "MetaLeft", "MetaRight", "Enter" ]
 
 
 dispatchHelper : (String -> Msg) -> (String -> Msg) -> String -> Msg
@@ -739,6 +725,70 @@ keyDecoder =
         Decode.field "code" Decode.string
 
 
+tab : Key
+tab =
+    Key "⇥" "Tab" Released
+
+
+capslock : Key
+capslock =
+    Key "⇪" "Capslock" Released
+
+
+enter : Key
+enter =
+    Key "⏎" "Enter" Released
+
+
+shiftLeft : Key
+shiftLeft =
+    Key "⇧" "ShiftLeft" Released
+
+
+shiftRight : Key
+shiftRight =
+    Key "⇧" "ShiftRight" Released
+
+
+altLeft : Key
+altLeft =
+    Key "alt" "AltLeft" Released
+
+
+altRight : Key
+altRight =
+    Key "alt" "AltRight" Released
+
+
+ctrlLeft : Key
+ctrlLeft =
+    Key "ctrl" "ControlLeft" Released
+
+
+ctrlRight : Key
+ctrlRight =
+    Key "ctrl" "ControlRight" Released
+
+
+space : Key
+space =
+    Key " " "Space" Released
+
+
+insertAt : Int -> a -> List a -> List a
+insertAt index obj lst =
+    if index <= 0 then
+        obj :: lst
+
+    else
+        case lst of
+            [] ->
+                [ obj ]
+
+            x :: xs ->
+                x :: insertAt (index - 1) obj xs
+
+
 init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
@@ -746,11 +796,21 @@ init flags =
             SilPowerG.layout
 
         keys =
-            Layout.codePoints
-                |> List.map (\e -> Key (curLayout.printer Layout.NoModifier e) e Released)
+            tab
+                :: (Layout.codePoints
+                        |> List.map (\e -> Key (curLayout.printer Layout.NoModifier e) e Released)
+                   )
+
+        withModKeys =
+            (insertAt 14 capslock keys
+                |> insertAt 26 enter
+                |> insertAt 27 shiftLeft
+                |> insertAt 39 shiftRight
+            )
+                ++ [ ctrlLeft, altLeft, space, altRight, ctrlRight ]
 
         keyboard =
-            Keyboard False Layout.NoModifier curLayout keys
+            Keyboard False Layout.NoModifier curLayout withModKeys
 
         info =
             case Decode.decodeValue infoDecoder flags of
