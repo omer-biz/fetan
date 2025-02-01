@@ -23,6 +23,9 @@ type alias Model =
 
     -- seconds since last dictation generated
     , time : Float
+
+    -- seconds since last key down event
+    , lastKeyEvent : Float
     }
 
 
@@ -70,6 +73,7 @@ type alias Keyboard =
 type KeyState
     = Pressed
     | Released
+    | Hinted
 
 
 type alias Key =
@@ -191,7 +195,7 @@ update msg model =
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown key ->
-            ( { model | keyboard = { keyboard | keys = updateKey key Pressed } }, Cmd.none )
+            ( { model | keyboard = { keyboard | keys = updateKey key Pressed }, lastKeyEvent = 0 }, Cmd.none )
 
         KeyUp key ->
             let
@@ -320,7 +324,40 @@ update msg model =
             )
 
         Tick _ ->
-            ( { model | time = model.time + 1 }, Cmd.none )
+            let
+                hint =
+                    Maybe.map (\h -> h dictation.current.letter curLayout.partial) curLayout.hint
+                        |> Maybe.andThen identity
+
+                ht hin key =
+                    if key.code == Tuple.second hin then
+                        { key | state = Hinted }
+
+                    else
+                        key
+
+                hintToList =
+                    case hint of
+                        Just h ->
+                            List.map (ht h) keyboard.keys
+
+                        Nothing ->
+                            keyboard.keys
+
+                keys =
+                    if model.lastKeyEvent == 5 then
+                        hintToList
+
+                    else
+                        keyboard.keys
+            in
+            ( { model
+                | time = model.time + 1
+                , lastKeyEvent = model.lastKeyEvent + 1
+                , keyboard = { keyboard | keys = keys }
+              }
+            , Cmd.none
+            )
 
         ModKeyDown key ->
             let
@@ -397,7 +434,7 @@ updateDictation codePoint keybrState layout dictation =
             ( { dictation | current = rollingCurrent }, { layout | partial = s } )
 
         Layout.Correct ->
-            ( advanceDictation, { layout | partial = Nothing} )
+            ( advanceDictation, { layout | partial = Nothing } )
 
         Layout.Wrong ->
             ( wrongAttempt, layout )
@@ -639,8 +676,11 @@ viewKey key =
 
                 Released ->
                     "bg-gray-600"
+
+                Hinted ->
+                    "bg-gray-300 text-black animate-pulse opacity-100"
     in
-    div [ class <| bg ++ " relative z-10 x-4 py-2 text-white text-center rounded shadow font-semibold w-12" ]
+    div [ class <| " relative z-10 x-4 py-2 text-white text-center rounded shadow font-semibold w-12 " ++ bg ]
         [ text key.view
         , if key.code == "KeyF" || key.code == "KeyJ" then
             span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
@@ -721,7 +761,7 @@ init flags =
                     Info initMetric 0
 
         model =
-            Model keyboard (stringToDictation "") info 0
+            Model keyboard (stringToDictation "") info 0 0
 
         dictation =
             dictGenerators
