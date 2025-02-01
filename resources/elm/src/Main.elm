@@ -100,12 +100,12 @@ port saveInfo : Encode.Value -> Cmd msg
 
 wordCount : number
 wordCount =
-    10
+    2
 
 
 dictGenerators : Array (DictGen.Nonempty Char)
 dictGenerators =
-    Array.fromList [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour ]
+    Array.fromList [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour, DictGen.all ]
 
 
 stringToDictation : String -> Dictation

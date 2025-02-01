@@ -10,7 +10,7 @@ module Dictation exposing
     , genOne
     , genThree
     , genTwo
-    , toList
+    , toList, all
     )
 
 import Random exposing (Generator)
@@ -71,6 +71,10 @@ basePatterns : Nonempty String
 basePatterns =
     Nonempty "CVC" [ "CVCV", "CVCVC", "CVCC" ]
 
+all : Nonempty Char
+all =
+    Nonempty consonantOne [ consonantTwo, consonantThree, consonantFour ]
+        |> concat
 
 randConsonant : Nonempty Char -> Generator Char
 randConsonant (Nonempty x xs) =
@@ -163,6 +167,5 @@ genFour len =
 
 genAll : Int -> Generator String
 genAll len =
-    Nonempty consonantOne [ consonantTwo, consonantThree, consonantFour ]
-        |> concat
+    all
         |> genFromList len
