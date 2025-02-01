@@ -1,16 +1,12 @@
-module Layouts.SilPowerG exposing (Model, layout)
+module Layouts.SilPowerG exposing (layout)
 
-import Dict exposing (Dict)
+import Dict exposing (Dict, partition)
 import Layout exposing (KeyAttempt(..), KeyModifier(..))
 
 
-type alias Model =
-    Maybe Char
-
-
-layout : Layout.Layout Model
+layout : Layout.Layout
 layout =
-    Layout.Layout pointToLetter keyAttempt Nothing
+    Layout.Layout pointToLetter keyAttempt (Just hint) Nothing
 
 
 silPowerGKeys : Dict String ( Char, Char )
@@ -32,7 +28,7 @@ silPowerGKeys =
         , ( "KeyQ", ( 'ቀ', 'ቐ' ) )
         , ( "KeyW", ( 'ወ', 'ኧ' ) )
         , ( "KeyE", ( 'እ', 'ዕ' ) )
-        , ( "KeyR", ( 'ረ', ' ' ) )
+        , ( "KeyR", ( 'ረ', '\u{0000}' ) )
         , ( "KeyT", ( 'ተ', 'ጠ' ) )
         , ( "KeyY", ( 'ኤ', 'የ' ) )
         , ( "KeyU", ( 'ኡ', 'ዑ' ) )
@@ -63,6 +59,7 @@ silPowerGKeys =
         , ( "Comma", ( '፥', '<' ) )
         , ( "Period", ( '።', '>' ) )
         , ( "Slash", ( '/', '?' ) )
+        , ( "Space", ( ' ', ' ' ) )
         ]
 
 
@@ -87,7 +84,7 @@ pointToLetter keybrState codePoint =
     pointToChar keybrState codePoint |> String.fromChar
 
 
-keyAttempt : KeyModifier -> String -> Char -> Model -> KeyAttempt Model
+keyAttempt : KeyModifier -> String -> Char -> Maybe Char -> KeyAttempt
 keyAttempt keybrState codePoint currentLetter partial =
     let
         attempt =
@@ -119,3 +116,77 @@ keyAttempt keybrState codePoint currentLetter partial =
 
     else
         Wrong
+
+
+normalizeLetter : Char -> ( Char, Maybe Char )
+normalizeLetter letter =
+    let
+        cl =
+            Char.toCode letter
+
+        vowelOffset =
+            modBy 0x08 <| modBy 0x10 cl
+
+        vowelPart =
+            if vowelOffset > 0 && vowelOffset < 8 then
+                Just <| Char.fromCode (0x12A0 + vowelOffset)
+
+            else
+                Nothing
+
+        helper =
+            if modBy 0x10 cl >= 8 then
+                ((cl // 0x10) * 0x10) + 8
+
+            else
+                (cl // 0x10) * 0x10
+    in
+    ( Char.fromCode helper, vowelPart )
+
+
+findMap :
+    List ( String, ( Char, Char ) )
+    -> Char
+    -> Maybe ( KeyModifier, String )
+findMap list input =
+    let
+        helper remaining =
+            case remaining of
+                [] ->
+                    Nothing
+
+                ( key, ( c1, c2 ) ) :: xs ->
+                    if input == c1 then
+                        Just <| ( NoModifier, key )
+
+                    else if input == c2 then
+                        Just <| ( Shift, key )
+
+                    else
+                        helper xs
+    in
+    helper list
+
+
+hint : Char -> Maybe Char -> Maybe ( KeyModifier, String )
+hint input partial =
+    let
+        ( c, v ) =
+            normalizeLetter input
+    in
+    if v == Nothing then
+        findMap (Dict.toList silPowerGKeys) c
+
+    else if partial /= Nothing then
+        findMap (Dict.toList silPowerGKeys) <| Maybe.withDefault '\u{0000}' v
+
+    else
+        findMap (Dict.toList silPowerGKeys) c
+
+
+
+-- case partial of
+--     Nothing ->
+--         input
+--     Just p ->
+--         Dict.toList silPowerGKeys |> findMap p

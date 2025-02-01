@@ -59,17 +59,10 @@ type alias Letter =
     }
 
 
-type
-    LayoutType
-    -- if you feel like you know this, yes you do this is exactly enum_dispatch crate
-    -- from Rust.
-    = SilPowerG (Layout.Layout SilPowerG.Model)
-
-
 type alias Keyboard =
     { focusKeyBr : Bool
     , modifier : Layout.KeyModifier
-    , layout : LayoutType
+    , layout : Layout.Layout
     , keys : List Key
     }
 
@@ -104,32 +97,6 @@ port saveInfo : Encode.Value -> Cmd msg
 wordCount : number
 wordCount =
     2
-
-
-normalizeLetter : Char -> ( Char, Maybe Char )
-normalizeLetter letter =
-    let
-        cl =
-            Char.toCode letter
-
-        vowelOffset =
-            modBy 0x08 <| modBy 0x10 cl
-
-        vowelPart =
-            if vowelOffset > 0 && vowelOffset < 8 then
-                Just <| Char.fromCode (0x12A0 + vowelOffset)
-
-            else
-                Nothing
-
-        helper =
-            if modBy 0x10 cl >= 8 then
-                ((cl // 0x10) * 0x10) + 8
-
-            else
-                (cl // 0x10) * 0x10
-    in
-    ( Char.fromCode helper, vowelPart )
 
 
 dictGenerators : Array (DictGen.Nonempty Char)
@@ -198,6 +165,9 @@ update msg model =
         keyboard =
             model.keyboard
 
+        curLayout =
+            keyboard.layout
+
         info =
             model.info
 
@@ -207,21 +177,11 @@ update msg model =
         metrics =
             info.metrics
 
-        curLayout =
-            case keyboard.layout of
-                SilPowerG l ->
-                    l
-
         updateKey key state =
             updateFirstOccurrence
                 (\k -> key == k.code)
                 (\k -> { k | state = state })
                 keyboard.keys
-
-        selectedLayout =
-            case keyboard.layout of
-                SilPowerG _ ->
-                    SilPowerG
     in
     case msg of
         FocusKeyBr ->
@@ -236,11 +196,11 @@ update msg model =
         KeyUp key ->
             let
                 ( dict, layout ) =
-                    updateDictation key keyboard.modifier curLayout dictation
+                    updateDictation key keyboard.modifier keyboard.layout dictation
             in
             ( { model
                 -- TODO: Change SilPowerG type based on the currently selected layout
-                | keyboard = { keyboard | keys = updateKey key Released, layout = selectedLayout layout }
+                | keyboard = { keyboard | keys = updateKey key Released, layout = layout }
                 , dictation = dict
               }
             , if List.isEmpty dict.next then
@@ -406,9 +366,9 @@ update msg model =
 updateDictation :
     String
     -> Layout.KeyModifier
-    -> Layout.Layout a
+    -> Layout.Layout
     -> Dictation
-    -> ( Dictation, Layout.Layout a )
+    -> ( Dictation, Layout.Layout )
 updateDictation codePoint keybrState layout dictation =
     let
         current =
@@ -432,19 +392,15 @@ updateDictation codePoint keybrState layout dictation =
         rollingCurrent =
             { current | state = Rolling }
     in
-    case layout.judge keybrState codePoint dictation.current.letter layout.state of
+    case layout.judge keybrState codePoint dictation.current.letter layout.partial of
         Layout.Partial s ->
-            ( { dictation | current = rollingCurrent }, { layout | state = s } )
+            ( { dictation | current = rollingCurrent }, { layout | partial = s } )
 
         Layout.Correct ->
-            ( advanceDictation, layout )
+            ( advanceDictation, { layout | partial = Nothing} )
 
         Layout.Wrong ->
-            if codePoint == "Space" then
-                ( advanceDictation, layout )
-
-            else
-                ( wrongAttempt, layout )
+            ( wrongAttempt, layout )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -478,20 +434,20 @@ view : Model -> Html Msg
 view model =
     main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
         [ div []
-            [ viewInfo model.info model.dictation.current.letter
+            [ viewInfo model.info model.dictation.current.letter model.keyboard.layout
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
             ]
         ]
 
 
-viewInfo : Info -> Char -> Html Msg
-viewInfo info curr =
+viewInfo : Info -> Char -> Layout.Layout -> Html Msg
+viewInfo info curr layout =
     table [ class "font-mono mb-8" ]
         [ tbody []
             [ viewMetrics info.metrics
             , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
-            , tr [] [ td [ class "pr-2 text-right" ] [ text "Key Combo:" ], viewHint curr ]
+            , tr [] [ td [ class "pr-2 text-right" ] [ text "Key Combo:" ], viewHint curr layout ]
             ]
         ]
 
@@ -510,25 +466,32 @@ viewCurrentKeys idx =
         |> td [ class "font-am" ]
 
 
-viewHint : Char -> Html msg
-viewHint curr =
+viewHint : Char -> Layout.Layout -> Html msg
+viewHint curr layout =
     let
-        helper ( cons, vowl ) =
-            case vowl of
-                Just v ->
-                    [ text <|
-                        String.fromChar curr
-                            ++ " = '"
-                            ++ String.fromChar cons
-                            ++ " + "
-                            ++ String.fromChar v
-                            ++ "'"
-                    ]
+        helper =
+            layout.hint
+                |> Maybe.map (\hint -> hint curr layout.partial)
+                |> Maybe.andThen identity
+                |> showHint
+
+        showHint hint =
+            case hint of
+                Just ( modifier, key ) ->
+                    key
+                        ++ " "
+                        ++ (case Layout.modifierToString modifier of
+                                Just mod ->
+                                    " + " ++ mod
+
+                                Nothing ->
+                                    ""
+                           )
 
                 Nothing ->
-                    [ text <| "'" ++ String.fromChar cons ++ "'" ]
+                    "No Hint"
     in
-    span [ class "font-am font-bold underline" ] (helper <| normalizeLetter curr)
+    span [ class "font-am font-bold underline" ] [ text helper ]
 
 
 viewMetrics : Metrics -> Html msg
@@ -747,7 +710,7 @@ init flags =
                 |> List.map (\e -> Key (curLayout.printer Layout.NoModifier e) e Released)
 
         keyboard =
-            Keyboard False Layout.NoModifier (SilPowerG SilPowerG.layout) keys
+            Keyboard False Layout.NoModifier curLayout keys
 
         info =
             case Decode.decodeValue infoDecoder flags of
