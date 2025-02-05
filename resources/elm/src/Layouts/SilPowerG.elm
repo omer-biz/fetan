@@ -1,12 +1,23 @@
-module Layouts.SilPowerG exposing (layout)
+module Layouts.SilPowerG exposing (..)
 
-import Dict exposing (Dict, partition)
-import Layout exposing (KeyAttempt(..), KeyModifier(..))
+import Dict exposing (Dict)
+import Types.KeyAttempt exposing (KeyAttempt(..))
+import Types.KeyModifier exposing (KeyModifier(..))
 
 
-layout : Layout.Layout
-layout =
-    Layout.Layout pointToLetter keyAttempt (Just hint) Nothing
+type alias Model =
+    { partial : Maybe Char
+    }
+
+
+empty : Model
+empty =
+    Model Nothing
+
+
+init : Model
+init =
+    empty
 
 
 silPowerGKeys : Dict String ( Char, Char )
@@ -79,13 +90,13 @@ pointToChar keybrState codePoint =
         |> Maybe.withDefault '\u{0000}'
 
 
-pointToLetter : KeyModifier -> String -> String
-pointToLetter keybrState codePoint =
+render : KeyModifier -> String -> Model -> String
+render keybrState codePoint _ =
     pointToChar keybrState codePoint |> String.fromChar
 
 
-keyAttempt : KeyModifier -> String -> Char -> Maybe Char -> KeyAttempt
-keyAttempt keybrState codePoint currentLetter partial =
+update : KeyModifier -> String -> Char -> Model -> ( Model, KeyAttempt )
+update keybrState codePoint currentLetter model =
     let
         attempt =
             pointToChar keybrState codePoint
@@ -104,44 +115,20 @@ keyAttempt keybrState codePoint currentLetter partial =
                 Wrong
     in
     if attempt == currentLetter then
-        Correct
+        ( empty, Correct )
 
     else if attemptUnicode >= 0x12A1 && attemptUnicode <= 0x12A7 then
-        partial
+        ( empty
+        , model.partial
             |> Maybe.map checkPartial
             |> Maybe.withDefault Wrong
+        )
 
     else if (clUnicode - attemptUnicode) > 0 && (clUnicode - attemptUnicode) <= 7 then
-        Partial <| Just attempt
+        ( { model | partial = Just attempt }, Partial )
 
     else
-        Wrong
-
-
-normalizeLetter : Char -> ( Char, Maybe Char )
-normalizeLetter letter =
-    let
-        cl =
-            Char.toCode letter
-
-        vowelOffset =
-            modBy 0x08 <| modBy 0x10 cl
-
-        vowelPart =
-            if vowelOffset > 0 && vowelOffset < 8 then
-                Just <| Char.fromCode (0x12A0 + vowelOffset)
-
-            else
-                Nothing
-
-        helper =
-            if modBy 0x10 cl >= 8 then
-                ((cl // 0x10) * 0x10) + 8
-
-            else
-                (cl // 0x10) * 0x10
-    in
-    ( Char.fromCode helper, vowelPart )
+        ( empty, Wrong )
 
 
 findMap :
@@ -168,8 +155,8 @@ findMap list input =
     helper list
 
 
-hint : Char -> Maybe Char -> Maybe ( KeyModifier, String )
-hint input partial =
+hint : Char -> Model -> Maybe ( KeyModifier, String )
+hint input model =
     let
         ( c, v ) =
             normalizeLetter input
@@ -177,16 +164,34 @@ hint input partial =
     if v == Nothing then
         findMap (Dict.toList silPowerGKeys) c
 
-    else if partial /= Nothing then
+    else if model.partial /= Nothing then
         findMap (Dict.toList silPowerGKeys) <| Maybe.withDefault '\u{0000}' v
 
     else
         findMap (Dict.toList silPowerGKeys) c
 
 
+normalizeLetter : Char -> ( Char, Maybe Char )
+normalizeLetter letter =
+    let
+        cl =
+            Char.toCode letter
 
--- case partial of
---     Nothing ->
---         input
---     Just p ->
---         Dict.toList silPowerGKeys |> findMap p
+        vowelOffset =
+            modBy 0x08 <| modBy 0x10 cl
+
+        vowelPart =
+            if vowelOffset > 0 && vowelOffset < 8 then
+                Just <| Char.fromCode (0x12A0 + vowelOffset)
+
+            else
+                Nothing
+
+        helper =
+            if modBy 0x10 cl >= 8 then
+                ((cl // 0x10) * 0x10) + 8
+
+            else
+                (cl // 0x10) * 0x10
+    in
+    ( Char.fromCode helper, vowelPart )

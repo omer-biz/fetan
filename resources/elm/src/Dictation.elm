@@ -111,7 +111,6 @@ combineGenerators generators =
         (Random.constant []) generators
 
 
-
 randWord : Nonempty Char -> Generator String
 randWord list =
     let

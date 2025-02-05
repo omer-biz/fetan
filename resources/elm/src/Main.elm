@@ -10,10 +10,11 @@ import Html.Attributes exposing (class, tabindex)
 import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
-import Layout exposing (KeyAttempt(..), KeyModifier(..))
-import Layouts.SilPowerG as SilPowerG
+import Models.Layout as Layout exposing (Layout(..))
 import Random
 import Time
+import Types.KeyAttempt exposing (KeyAttempt(..))
+import Types.KeyModifier exposing (KeyModifier(..))
 
 
 type alias Model =
@@ -51,7 +52,7 @@ type alias Dictation =
 
 type LetterState
     = Fresh
-    | Wrong
+    | Incorrent
     | Rolling
 
 
@@ -64,8 +65,8 @@ type alias Letter =
 
 type alias Keyboard =
     { focusKeyBr : Bool
-    , modifier : Layout.KeyModifier
-    , layout : Layout.Layout
+    , modifier : KeyModifier
+    , layout : Layout
     , keys : List Key
     }
 
@@ -100,7 +101,7 @@ port saveInfo : Encode.Value -> Cmd msg
 
 wordCount : number
 wordCount =
-    2
+    10
 
 
 dictGenerators : Array (DictGen.Nonempty Char)
@@ -130,7 +131,7 @@ specialKeys : Dict String String
 specialKeys =
     Dict.fromList
         [ ( "Tab", "flex-grow" )
-        , ( "Capslock", "w-20" )
+        , ( "CapsLock", "w-20" )
         , ( "ShiftLeft", "flex-grow" )
         , ( "ShiftRight", "flex-grow" )
         , ( "ControlLeft", "w-20" )
@@ -264,6 +265,7 @@ update msg model =
             ( { model
                 | dictation = stringToDictation dict
                 , time = 0
+                , lastKeyEvent = 0
                 , info = { info | metrics = newMetrics }
               }
             , if model.time == 0 then
@@ -276,16 +278,15 @@ update msg model =
         Tick _ ->
             let
                 hints =
-                    Maybe.map (\h -> h dictation.current.letter curLayout.partial) curLayout.hint
-                        |> Maybe.andThen identity
-                        |> htoList
+                    Layout.hint dictation.current.letter curLayout
+                        |> hintToList
 
                 hintedToList =
                     keyboard.keys
                         |> List.map (hintMod hints)
 
                 keys =
-                    if model.lastKeyEvent == 5 then
+                    if model.lastKeyEvent == 2 then
                         hintedToList
 
                     else
@@ -305,10 +306,10 @@ update msg model =
                     Layout.keyModDown key keyboard.modifier
 
                 keys =
-                    -- every time the user presses the mod keys the printer gets called 47
+                    -- every time the user presses the mod keys the key rendering function gets called 47
                     -- times it's either this or storing the key views for plain, Shift, CapsLock, and ShiftCapslock
-                    -- the classic tradeoff "storage or cpu". We will see.
-                    -- I just hope the layout authors will not write heavy "printers"
+                    -- the classic tradeoff "storage or cpu" or hear me out here, I'm stupid. We will see.
+                    -- I just hope the layout authors will not write heavy "renderer"
                     keyboard.keys
                         |> List.map
                             (\k ->
@@ -320,7 +321,7 @@ update msg model =
                                         k
 
                                 else
-                                    { k | view = curLayout.printer newState k.code }
+                                    { k | view = Layout.render newState k.code curLayout }
                             )
             in
             ( { model
@@ -343,7 +344,7 @@ update msg model =
                                     { k | state = Released }
 
                                 else
-                                    { k | view = curLayout.printer newState k.code }
+                                    { k | view = Layout.render newState k.code curLayout }
                             )
             in
             ( { model
@@ -381,8 +382,8 @@ bestShiftForKey key =
         "ShiftLeft"
 
 
-htoList : Maybe ( KeyModifier, String ) -> List String
-htoList hint =
+hintToList : Maybe ( KeyModifier, String ) -> List String
+hintToList hint =
     let
         modToCode mod code =
             case mod of
@@ -390,13 +391,13 @@ htoList hint =
                     []
 
                 CapsLock ->
-                    [ "Capslock" ]
+                    [ "CapsLock" ]
 
                 Shift ->
                     [ bestShiftForKey code ]
 
                 ShiftCapsLock ->
-                    [ "ShiftRight", "Capslock" ]
+                    [ "ShiftRight", "CapsLock" ]
     in
     case hint of
         Just ( mod, code ) ->
@@ -408,10 +409,10 @@ htoList hint =
 
 updateDictation :
     String
-    -> Layout.KeyModifier
-    -> Layout.Layout
+    -> KeyModifier
+    -> Layout
     -> Dictation
-    -> ( Dictation, Layout.Layout )
+    -> ( Dictation, Layout )
 updateDictation codePoint keybrState layout dictation =
     let
         current =
@@ -430,20 +431,20 @@ updateDictation codePoint keybrState layout dictation =
                     dictation
 
         wrongAttempt =
-            { dictation | current = { current | state = Wrong, wasWrong = True } }
+            { dictation | current = { current | state = Incorrent, wasWrong = True } }
 
         rollingCurrent =
             { current | state = Rolling }
     in
-    case layout.judge keybrState codePoint dictation.current.letter layout.partial of
-        Layout.Partial s ->
-            ( { dictation | current = rollingCurrent }, { layout | partial = s } )
+    case Layout.update keybrState codePoint dictation.current.letter layout of
+        ( newLayout, Partial ) ->
+            ( { dictation | current = rollingCurrent }, newLayout )
 
-        Layout.Correct ->
-            ( advanceDictation, { layout | partial = Nothing } )
+        ( newLayout, Correct ) ->
+            ( advanceDictation, newLayout )
 
-        Layout.Wrong ->
-            ( wrongAttempt, { layout | partial = Nothing } )
+        ( newLayout, Wrong ) ->
+            ( wrongAttempt, newLayout )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -496,15 +497,11 @@ viewInfo info =
 
 viewCurrentKeys : Int -> Html msg
 viewCurrentKeys idx =
-    let
-        viewK k =
-            span [ class "px-1" ] [ text <| String.fromChar k ]
-    in
     dictGenerators
         |> Array.get idx
         |> Maybe.withDefault DictGen.consonantOne
         |> DictGen.toList
-        |> List.map viewK
+        |> List.map (\k -> span [ class "px-1" ] [ text <| String.fromChar k ])
         |> td [ class "font-am" ]
 
 
@@ -539,7 +536,7 @@ viewDictation dict =
             if
                 (dict.current.wasWrong && (dict.current.state /= Rolling))
                     || dict.current.state
-                    == Wrong
+                    == Incorrent
             then
                 "text-red-400"
 
@@ -562,7 +559,8 @@ viewDictation dict =
                 [ text <| (lt.letter |> String.fromChar |> String.replace " " " · ") ]
 
         viewCurrentLetter =
-            span [ class "border-white border-b-4" ]
+            span
+                [ class "border-white border-b-4" ]
                 [ text <| (dict.current.letter |> String.fromChar |> String.replace " " " · ") ]
 
         viewLetters lts =
@@ -655,25 +653,22 @@ viewKey key =
                     "bg-gray-600"
 
                 Hinted ->
-                    "bg-gray-300 text-black animate-pulse"
+                    "transition-colors duration-300 bg-gray-300 text-black animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
                 |> Maybe.withDefault ""
     in
     div
-        [ class <|
-            String.join
-                " "
-                [ "relative z-10 x-4 py-2 text-center rounded shadow font-semibold w-12", bg, extraStyle ]
-        ]
+        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded shadow font-semibold w-12", bg, extraStyle ] ]
         [ text key.view
-        , if key.code == "KeyF" || key.code == "KeyJ" then
-            span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
-
-          else
-            text ""
         , case String.split "Key" key.code of
+            "" :: "F" :: [] ->
+                span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
+
+            "" :: "J" :: [] ->
+                span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
+
             "" :: l :: [] ->
                 span [ class "absolute z-2 top-0 left-1 text-xs font-normal" ] [ text l ]
 
@@ -697,7 +692,7 @@ subscriptions model =
 
 modifierKeys : List String
 modifierKeys =
-    [ "ShiftLeft", "ShiftRight", "Capslock", "ControlRight", "ControlLeft", "AltRight", "AltLeft", "Tab", "MetaLeft", "MetaRight", "Enter" ]
+    [ "ShiftLeft", "ShiftRight", "CapsLock", "ControlRight", "ControlLeft", "AltRight", "AltLeft", "Tab", "MetaLeft", "MetaRight", "Enter" ]
 
 
 dispatchHelper : (String -> Msg) -> (String -> Msg) -> String -> Msg
@@ -732,7 +727,7 @@ tab =
 
 capslock : Key
 capslock =
-    Key "⇪" "Capslock" Released
+    Key "⇪" "CapsLock" Released
 
 
 enter : Key
@@ -793,12 +788,12 @@ init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
         curLayout =
-            SilPowerG.layout
+            Layout.init
 
         keys =
             tab
                 :: (Layout.codePoints
-                        |> List.map (\e -> Key (curLayout.printer Layout.NoModifier e) e Released)
+                        |> List.map (\e -> Key (Layout.render NoModifier e curLayout) e Released)
                    )
 
         withModKeys =
@@ -810,7 +805,7 @@ init flags =
                 ++ [ ctrlLeft, altLeft, space, altRight, ctrlRight ]
 
         keyboard =
-            Keyboard False Layout.NoModifier curLayout withModKeys
+            Keyboard False NoModifier curLayout withModKeys
 
         info =
             case Decode.decodeValue infoDecoder flags of
