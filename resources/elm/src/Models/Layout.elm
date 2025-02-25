@@ -1,5 +1,6 @@
 module Models.Layout exposing (..)
 
+import Layouts.GeezIME as GeezIME
 import Layouts.PowerGeez as PowerGeez
 import Layouts.SilPowerG as SilPowerG
 import Types.KeyAttempt exposing (KeyAttempt(..))
@@ -9,11 +10,13 @@ import Types.KeyModifier exposing (KeyModifier(..))
 type Layout
     = PowerGLayout SilPowerG.Model
     | PowerGeezLayout PowerGeez.Model
+    | GeezIMELayout GeezIME.Model
 
 
 init : Layout
 init =
     PowerGLayout SilPowerG.init
+
 
 
 update : KeyModifier -> String -> Char -> Layout -> ( Layout, KeyAttempt )
@@ -33,6 +36,13 @@ update keybrState codePoint currentLetter layout =
             in
             ( PowerGeezLayout newModel, result )
 
+        GeezIMELayout model ->
+            let
+                ( newModel, result ) =
+                    GeezIME.update keybrState codePoint currentLetter model
+            in
+            ( GeezIMELayout newModel, result )
+
 
 render : KeyModifier -> String -> Layout -> String
 render keybrState codePoint layout =
@@ -43,6 +53,9 @@ render keybrState codePoint layout =
         PowerGeezLayout model ->
             PowerGeez.render keybrState codePoint model
 
+        GeezIMELayout model ->
+            GeezIME.render keybrState codePoint model
+
 
 hint : Char -> Layout -> Maybe ( KeyModifier, String )
 hint curr layout =
@@ -52,6 +65,9 @@ hint curr layout =
 
         PowerGeezLayout model ->
             PowerGeez.hint curr model
+
+        GeezIMELayout model ->
+            GeezIME.hint curr model
 
 
 
