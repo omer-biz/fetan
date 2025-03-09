@@ -200,6 +200,7 @@ update msg model =
 
         KeyUp key ->
             let
+
                 ( dict, layout ) =
                     updateDictation key keyboard.modifier keyboard.layout dictation
 
@@ -286,7 +287,7 @@ update msg model =
                         |> List.map (hintMod hints)
 
                 keys =
-                    if model.lastKeyEvent == 2 then
+                    if model.lastKeyEvent > 0 then
                         hintedToList
 
                     else
