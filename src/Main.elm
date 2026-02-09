@@ -200,7 +200,6 @@ update msg model =
 
         KeyUp key ->
             let
-
                 ( dict, layout ) =
                     updateDictation key keyboard.modifier keyboard.layout dictation
 
@@ -503,7 +502,7 @@ viewCurrentKeys idx =
         |> Maybe.withDefault DictGen.consonantOne
         |> DictGen.toList
         |> List.map (\k -> span [ class "px-1" ] [ text <| String.fromChar k ])
-        |> td [ class "font-am" ]
+        |> td []
 
 
 viewMetrics : Metrics -> Html msg
@@ -592,7 +591,7 @@ viewKeyBoard keyboard =
     let
         isfocused =
             if keyboard.focusKeyBr == False then
-                div [ class "absolute z-20 inset-0 bg-white bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
+                div [ class "absolute z-20 inset-0 bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
                     [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to Start" ] ]
 
             else

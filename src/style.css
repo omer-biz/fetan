@@ -3,7 +3,7 @@
 @font-face {
     font-family: "NotoSansEthiopic";
     font-weight: normal;
-    src: url("../fonts/NotoSansEthiopic-Regular.ttf") format("truetype");
+    src: url("/fonts/NotoSansEthiopic-Regular.ttf") format("truetype");
 }
 
 body {
