@@ -45,10 +45,10 @@ update keybrState codePoint currentLetter model =
             keybrState == CapsLock || keybrState == ShiftCapsLock
 
         packInfo p =
-            let
-                _ =
-                    Debug.log "he" <| Char.toCode p
-            in
+            -- let
+            --     _ =
+            --         Debug.log "he" <| Char.toCode p
+            -- in
             if Char.toCode p < 0x137D then
                 Partial
                 -- <| Just (Char.fromCode (Char.toCode p + 0x017D))
