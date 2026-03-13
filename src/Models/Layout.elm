@@ -13,9 +13,28 @@ type Layout
     | GeezIMELayout GeezIME.Model
 
 
+type LayoutKind
+    = SilPowerG
+    | PowerGeez
+    | GeezIME
+
+
+initLayout : LayoutKind -> Layout
+initLayout kind =
+    case kind of
+        SilPowerG ->
+            PowerGLayout SilPowerG.init
+
+        PowerGeez ->
+            PowerGeezLayout PowerGeez.init
+
+        GeezIME ->
+            GeezIMELayout GeezIME.init
+
+
 init : Layout
 init =
-    PowerGLayout SilPowerG.init
+    GeezIMELayout GeezIME.init
 
 
 

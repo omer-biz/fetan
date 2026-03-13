@@ -5,9 +5,9 @@ import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
-import Html exposing (Html, div, main_, p, span, table, tbody, td, text, tr)
-import Html.Attributes exposing (class, tabindex)
-import Html.Events exposing (onBlur, onFocus, preventDefaultOn)
+import Html exposing (Html, div, main_, option, p, select, span, table, tbody, td, text, tr)
+import Html.Attributes exposing (class, selected, tabindex, value)
+import Html.Events exposing (onBlur, onFocus, onInput, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
 import Models.Layout as Layout exposing (Layout(..))
@@ -27,6 +27,8 @@ type alias Model =
 
     -- seconds since last key down event
     , lastKeyEvent : Float
+    , currentLayout : Layout
+    , layoutKind : Layout.LayoutKind
     }
 
 
@@ -66,7 +68,6 @@ type alias Letter =
 type alias Keyboard =
     { focusKeyBr : Bool
     , modifier : KeyModifier
-    , layout : Layout
     , keys : List Key
     }
 
@@ -94,6 +95,7 @@ type Msg
     | BlurKeyBr
     | NewDict String
     | Tick Time.Posix
+    | SelectLayout Layout.LayoutKind
 
 
 port saveInfo : Encode.Value -> Cmd msg
@@ -171,7 +173,7 @@ update msg model =
             model.keyboard
 
         curLayout =
-            keyboard.layout
+            model.currentLayout
 
         info =
             model.info
@@ -201,7 +203,7 @@ update msg model =
         KeyUp key ->
             let
                 ( dict, layout ) =
-                    updateDictation key keyboard.modifier keyboard.layout dictation
+                    updateDictation key keyboard.modifier model.currentLayout dictation
 
                 nextLessonIdx =
                     if
@@ -221,8 +223,8 @@ update msg model =
                         info.lessonIdx
             in
             ( { model
-                -- TODO: Change SilPowerG type based on the currently selected layout
-                | keyboard = { keyboard | keys = updateKey key Released, layout = layout }
+                | keyboard = { keyboard | keys = updateKey key Released }
+                , currentLayout = layout
                 , dictation = dict
                 , info = { info | lessonIdx = nextLessonIdx }
               }
@@ -349,6 +351,30 @@ update msg model =
             in
             ( { model
                 | keyboard = { keyboard | modifier = newState, keys = keys }
+              }
+            , Cmd.none
+            )
+
+        SelectLayout kind ->
+            let
+                newLayout =
+                    Layout.initLayout kind
+
+                keys =
+                    keyboard.keys
+                        |> List.map
+                            (\k ->
+                                if List.member k.code modifierKeys then
+                                    k
+
+                                else
+                                    { k | view = Layout.render keyboard.modifier k.code newLayout }
+                            )
+            in
+            ( { model
+                | layoutKind = kind
+                , currentLayout = newLayout
+                , keyboard = { keyboard | keys = keys }
               }
             , Cmd.none
             )
@@ -481,6 +507,58 @@ view model =
             [ viewInfo model.info
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
+            , viewLayoutSelector model.layoutKind
+            ]
+        ]
+
+
+layoutKindFromString : String -> Layout.LayoutKind
+layoutKindFromString str =
+    case str of
+        "SilPowerG" ->
+            Layout.SilPowerG
+
+        "PowerGeez" ->
+            Layout.PowerGeez
+
+        "GeezIME" ->
+            Layout.GeezIME
+
+        _ ->
+            Layout.GeezIME
+
+
+viewLayoutSelector : Layout.LayoutKind -> Html Msg
+viewLayoutSelector currentKind =
+    div [ class "flex items-center gap-3 mb-4 w-fill pt-4 justify-end" ]
+        [ span
+            [ class "text-sm font-medium text-zinc-400" ]
+            [ text "Layout" ]
+        , select
+            [ onInput
+                (\str ->
+                    str
+                        |> layoutKindFromString
+                        |> SelectLayout
+                )
+            , class
+                "bg-zinc-800 text-zinc-200 text-sm border border-zinc-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 hover:bg-zinc-700 transition"
+            ]
+            [ option
+                [ value "SilPowerG"
+                , selected (currentKind == Layout.SilPowerG)
+                ]
+                [ text "SilPowerG" ]
+            , option
+                [ value "PowerGeez"
+                , selected (currentKind == Layout.PowerGeez)
+                ]
+                [ text "PowerGeez" ]
+            , option
+                [ value "GeezIME"
+                , selected (currentKind == Layout.GeezIME)
+                ]
+                [ text "GeezIME" ]
             ]
         ]
 
@@ -788,7 +866,7 @@ init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
         curLayout =
-            Layout.init
+            Layout.initLayout Layout.GeezIME
 
         keys =
             tab
@@ -805,7 +883,7 @@ init flags =
                 ++ [ ctrlLeft, altLeft, space, altRight, ctrlRight ]
 
         keyboard =
-            Keyboard False NoModifier curLayout withModKeys
+            Keyboard False NoModifier withModKeys
 
         info =
             case Decode.decodeValue infoDecoder flags of
@@ -816,7 +894,7 @@ init flags =
                     Info initMetric 0
 
         model =
-            Model keyboard (stringToDictation "") info 0 0
+            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME
 
         dictation =
             dictGenerators
