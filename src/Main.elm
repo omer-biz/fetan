@@ -5,8 +5,8 @@ import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
-import Html exposing (Html, div, main_, option, p, select, span, table, tbody, td, text, tr)
-import Html.Attributes exposing (class, selected, tabindex, value)
+import Html exposing (Html, a, div, main_, option, p, select, span, table, tbody, td, text, tr)
+import Html.Attributes exposing (class, href, selected, tabindex, target, value)
 import Html.Events exposing (onBlur, onFocus, onInput, preventDefaultOn)
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
@@ -530,19 +530,34 @@ layoutKindFromString str =
 
 viewLayoutSelector : Layout.LayoutKind -> Html Msg
 viewLayoutSelector currentKind =
-    div [ class "flex items-center gap-3 mb-4 w-fill pt-4 justify-end" ]
-        [ span
-            [ class "text-sm font-medium text-zinc-400" ]
-            [ text "Layout" ]
+    let
+        ( description, url ) =
+            layoutInfo currentKind
+    in
+    div [ class "flex items-center gap-3 mb-4 w-full pt-4 justify-end" ]
+        [ div [ class "relative group inline-block hover:text-gray-100 transition" ]
+            [ span
+                [ class "relative font-medium text-zinc-400 cursor-help hover:text-gray-100 transition pr-4" ]
+                [ text "Layout"
+                , span
+                    [ class "absolute -top-1 -right-1 text-[10px] text-zinc-500 group-hover:text-zinc-300" ]
+                    [ text "ⓘ" ]
+                ]
+            , span
+                [ class "absolute left-0 mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 px-4 py-3 bg-stone-900 text-stone-200 text-sm leading-relaxed border border-stone-700 shadow-xl rounded-sm md:block" ]
+                [ div [ class "mb-2" ] [ text description ]
+                , a
+                    [ href url
+                    , target "_blank"
+                    , class "text-emerald-400 hover:text-emerald-300 underline"
+                    ]
+                    [ text "View full layout table →" ]
+                ]
+            ]
         , select
-            [ onInput
-                (\str ->
-                    str
-                        |> layoutKindFromString
-                        |> SelectLayout
-                )
+            [ onInput (layoutKindFromString >> SelectLayout)
             , class
-                "bg-zinc-800 text-zinc-200 text-sm border border-zinc-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 hover:bg-zinc-700 transition"
+                "bg-zinc-800 text-zinc-200 text-sm border border-zinc-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-500 hover:bg-zinc-700 transition"
             ]
             [ option
                 [ value "SilPowerG"
@@ -561,6 +576,25 @@ viewLayoutSelector currentKind =
                 [ text "GeezIME" ]
             ]
         ]
+
+
+layoutInfo : Layout.LayoutKind -> ( String, String )
+layoutInfo kind =
+    case kind of
+        Layout.SilPowerG ->
+            ( "SIL Power-G is a phonetic Amharic keyboard layout widely used in Ethiopia. It maps Latin keys to Ethiopic letters based on sound."
+            , "https://help.keyman.com/keyboard/sil_ethiopic_power_g/1.2.6/sil_ethiopic_power_g"
+            )
+
+        Layout.PowerGeez ->
+            ( "PowerGeez is a legacy Ethiopian typing system used in many older applications and publishing tools."
+            , "/layouts/powergeez"
+            )
+
+        Layout.GeezIME ->
+            ( "GeezIME is a transliteration input method. You type Latin sequences like 'he', 'hu', 'hi' which convert into Ethiopic characters."
+            , "https://geezlab.com/help/"
+            )
 
 
 viewInfo : Info -> Html Msg
@@ -634,12 +668,20 @@ viewDictation dict =
                         ""
             in
             span [ class wasWrong ]
-                [ text <| (lt.letter |> String.fromChar |> String.replace " " " · ") ]
+                [ lt.letter
+                    |> String.fromChar
+                    |> String.replace " " " · "
+                    |> text
+                ]
 
         viewCurrentLetter =
             span
                 [ class "border-white border-b-4" ]
-                [ text <| (dict.current.letter |> String.fromChar |> String.replace " " " · ") ]
+                [ dict.current.letter
+                    |> String.fromChar
+                    |> String.replace " " " · "
+                    |> text
+                ]
 
         viewLetters lts =
             List.map viewLetter lts
