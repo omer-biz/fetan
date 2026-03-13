@@ -176,7 +176,7 @@ render keybrState codePoint _ =
             String.fromChar c
 
         Nothing ->
-            ""
+            mappedChar
 
 
 update : KeyModifier -> String -> Char -> Model -> ( Model, KeyAttempt )
