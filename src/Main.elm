@@ -680,7 +680,7 @@ viewMetrics metrics =
     let
         viewOld m pst =
             if m.new >= m.old then
-                span [ class "text-green-400" ] [ text <| "+" ++ String.fromInt (m.new - m.old) ++ pst ]
+                span [ class "text-green-600 dark:text-green-400" ] [ text <| "+" ++ String.fromInt (m.new - m.old) ++ pst ]
 
             else
                 span [ class "text-red-600 dark:text-red-400" ] [ text <| String.fromInt (m.new - m.old) ++ pst ]
