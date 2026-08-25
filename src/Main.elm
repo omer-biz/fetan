@@ -54,7 +54,7 @@ type alias Dictation =
 
 type LetterState
     = Fresh
-    | Incorrent
+    | Incorrect
     | Rolling
 
 
@@ -457,7 +457,7 @@ updateDictation codePoint keybrState layout dictation =
                     dictation
 
         wrongAttempt =
-            { dictation | current = { current | state = Incorrent, wasWrong = True } }
+            { dictation | current = { current | state = Incorrect, wasWrong = True } }
 
         rollingCurrent =
             { current | state = Rolling }
@@ -648,7 +648,7 @@ viewDictation dict =
             if
                 (dict.current.wasWrong && (dict.current.state /= Rolling))
                     || dict.current.state
-                    == Incorrent
+                    == Incorrect
             then
                 "text-red-400"
 
