@@ -25,10 +25,10 @@ type alias Model =
     -- seconds since last dictation generated
     , time : Float
 
-    -- seconds since last key down event
     , lastKeyEvent : Float
     , currentLayout : Layout
     , layoutKind : Layout.LayoutKind
+    , started : Bool
     }
 
 
@@ -198,7 +198,7 @@ update msg model =
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown key ->
-            ( { model | keyboard = { keyboard | keys = updateKey key Pressed }, lastKeyEvent = 0 }, Cmd.none )
+            ( { model | keyboard = { keyboard | keys = updateKey key Pressed }, lastKeyEvent = 0, started = True }, Cmd.none )
 
         KeyUp key ->
             let
@@ -268,6 +268,7 @@ update msg model =
                 | dictation = stringToDictation dict
                 , time = 0
                 , lastKeyEvent = 0
+                , started = False
                 , info = { info | metrics = newMetrics }
               }
             , if model.time == 0 then
@@ -295,7 +296,7 @@ update msg model =
                         keyboard.keys
             in
             ( { model
-                | time = model.time + 1
+                | time = if model.started then model.time + 1 else 0
                 , lastKeyEvent = model.lastKeyEvent + 1
                 , keyboard = { keyboard | keys = keys }
               }
@@ -936,7 +937,7 @@ init flags =
                     Info initMetric 0
 
         model =
-            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME
+            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME False
 
         dictation =
             dictGenerators
