@@ -510,7 +510,7 @@ updateScore metrics =
 
 view : Model -> Html Msg
 view model =
-    main_ [ class "text-white flex items-center justify-center h-screen flex-col" ]
+    main_ [ class "text-stone-200 flex items-center justify-center h-screen flex-col" ]
         [ div []
             [ viewInfo model.info
             , viewDictation model.dictation
@@ -565,7 +565,7 @@ viewLayoutSelector currentKind =
         , select
             [ onInput (layoutKindFromString >> SelectLayout)
             , class
-                "bg-zinc-800 text-zinc-200 text-sm border border-zinc-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-gray-500 hover:bg-zinc-700 transition"
+                "bg-stone-800 text-stone-200 text-sm border border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-stone-500 hover:bg-stone-700 transition"
             ]
             [ option
                 [ value "SilPowerG"
@@ -663,10 +663,10 @@ viewDictation dict =
                         "text-red-400"
 
                     else if current.state == Rolling then
-                        "text-yellow-300"
+                        "text-amber-400"
 
                     else
-                        ""
+                        "text-teal-400"
                 Nothing ->
                     ""
 
@@ -690,7 +690,7 @@ viewDictation dict =
             case dict.current of
                 Just current ->
                     span
-                        [ class "border-white border-b-4" ]
+                        [ class "border-teal-400 border-b-4" ]
                         [ current.letter
                             |> String.fromChar
                             |> String.replace " " " · "
@@ -702,8 +702,8 @@ viewDictation dict =
         viewLetters lts =
             List.map viewLetter lts
     in
-    div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
-        [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters (List.reverse dict.prev))
+    div [ class "mx-auto border rounded border-2 border-stone-700 p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
+        [ p [ class "inline m-0 p-0 text-stone-500" ] (viewLetters (List.reverse dict.prev))
         , p [ class <| String.join " " [ "inline m-0 p-0", currentKeyStyle ] ]
             [ viewCurrentLetter ]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
@@ -757,7 +757,7 @@ viewKeyBoard keyboard =
                 |> viewRow
     in
     div
-        [ class <| "border-2 p-6 rounded border-gray-500 relative"
+        [ class <| "border-2 p-6 rounded border-stone-800 bg-stone-900/50 relative"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0 -- Helps make a div focusable and blurable.
@@ -783,13 +783,13 @@ viewKey key =
         bg =
             case key.state of
                 Pressed ->
-                    "bg-lime-500"
+                    "bg-teal-500 text-stone-950"
 
                 Released ->
-                    "bg-gray-600"
+                    "bg-stone-800 text-stone-300 border border-stone-700"
 
                 Hinted ->
-                    "transition-colors duration-300 bg-gray-300 text-black animate-pulse"
+                    "transition-colors duration-300 bg-teal-900/50 text-teal-200 border border-teal-700 animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
