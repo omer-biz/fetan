@@ -570,6 +570,15 @@ view model =
             , viewKeyBoard model.keyboard
             , viewLayoutSelector model.layoutKind
             ]
+        , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
+            [ text "an open-source project | made by "
+            , a 
+                [ href "https://github.com/omer-biz/fetan"
+                , target "_blank"
+                , class "font-medium hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                ] 
+                [ text "omer" ]
+            ]
         ]
 
 
