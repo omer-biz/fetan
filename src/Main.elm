@@ -40,6 +40,7 @@ type alias Model =
 type alias Info =
     { metrics : Metrics
     , lessonIdx : Int
+    , layoutKind : String
     }
 
 
@@ -382,13 +383,15 @@ update msg model =
                                 else
                                     { k | view = Layout.render keyboard.modifier k.code newLayout }
                             )
+                newInfo = { info | layoutKind = layoutKindToString kind }
             in
             ( { model
                 | layoutKind = kind
                 , currentLayout = newLayout
                 , keyboard = { keyboard | keys = keys }
+                , info = newInfo
               }
-            , Cmd.none
+            , saveInfo <| encodeInfo newInfo
             )
 
         ToggleTheme ->
@@ -584,6 +587,13 @@ layoutKindFromString str =
 
         _ ->
             Layout.GeezIME
+
+layoutKindToString : Layout.LayoutKind -> String
+layoutKindToString kind =
+    case kind of
+        Layout.SilPowerG -> "SilPowerG"
+        Layout.PowerGeez -> "PowerGeez"
+        Layout.GeezIME -> "GeezIME"
 
 
 viewLayoutSelector : Layout.LayoutKind -> Html Msg
@@ -973,8 +983,21 @@ insertAt index obj lst =
 init : Encode.Value -> ( Model, Cmd Msg )
 init flags =
     let
+        info =
+            case Decode.decodeValue (Decode.field "lessonInfo" infoDecoder) flags of
+                Ok m ->
+                    m
+
+                Err _ ->
+                    case Decode.decodeValue infoDecoder flags of
+                        Ok m -> m
+                        Err _ -> Info initMetric 0 "GeezIME"
+
+        curLayoutKind =
+            layoutKindFromString info.layoutKind
+
         curLayout =
-            Layout.initLayout Layout.GeezIME
+            Layout.initLayout curLayoutKind
 
         keys =
             tab
@@ -993,23 +1016,13 @@ init flags =
         keyboard =
             Keyboard False NoModifier withModKeys
 
-        info =
-            case Decode.decodeValue (Decode.field "lessonInfo" infoDecoder) flags of
-                Ok m ->
-                    m
-
-                Err _ ->
-                    case Decode.decodeValue infoDecoder flags of
-                        Ok m -> m
-                        Err _ -> Info initMetric 0
-
         themeStr =
             case Decode.decodeValue (Decode.field "theme" Decode.string) flags of
                 Ok "light" -> Light
                 _ -> Dark
 
         model =
-            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME False themeStr
+            Model keyboard (stringToDictation "") info 0 0 curLayout curLayoutKind False themeStr
 
         dictation =
             dictGenerators
@@ -1037,9 +1050,10 @@ metricsDecoder =
 
 infoDecoder : Decode.Decoder Info
 infoDecoder =
-    Decode.map2 Info
+    Decode.map3 Info
         (Decode.field "metrics" metricsDecoder)
         (Decode.field "lessonIdx" Decode.int)
+        (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -1061,6 +1075,7 @@ encodeInfo info =
     Encode.object
         [ ( "metrics", encodeMetrics info.metrics )
         , ( "lessonIdx", Encode.int info.lessonIdx )
+        , ( "layoutKind", Encode.string info.layoutKind )
         ]
 
 
