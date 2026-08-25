@@ -477,7 +477,7 @@ updateSpeed : Float -> Int -> Metrics -> Metrics
 updateSpeed time lenChars metrics =
     let
         speed =
-            { old = metrics.speed.new, new = round <| toFloat lenChars / (time / 60) }
+            { old = metrics.speed.new, new = round <| (toFloat lenChars / 5) / (time / 60) }
     in
     { metrics | speed = speed }
 
