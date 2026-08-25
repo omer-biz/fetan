@@ -17,6 +17,8 @@ import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 
 
+type Theme = Light | Dark
+
 type alias Model =
     { keyboard : Keyboard
     , dictation : Dictation
@@ -29,6 +31,7 @@ type alias Model =
     , currentLayout : Layout
     , layoutKind : Layout.LayoutKind
     , started : Bool
+    , theme : Theme
     }
 
 
@@ -96,6 +99,7 @@ type Msg
     | NewDict String
     | Tick Time.Posix
     | SelectLayout Layout.LayoutKind
+    | ToggleTheme
 
 
 port saveInfo : Encode.Value -> Cmd msg
@@ -385,6 +389,13 @@ update msg model =
             , Cmd.none
             )
 
+        ToggleTheme ->
+            let
+                newTheme =
+                    if model.theme == Dark then Light else Dark
+            in
+            ( { model | theme = newTheme }, saveTheme (if newTheme == Dark then "dark" else "light") )
+
         _ ->
             ( model, Cmd.none )
 
@@ -508,10 +519,26 @@ updateScore metrics =
     { metrics | score = score }
 
 
+viewThemeToggle : Theme -> Html Msg
+viewThemeToggle theme =
+    let
+        icon =
+            if theme == Dark then
+                "☀️"
+            else
+                "🌙"
+    in
+    Html.button
+        [ Html.Events.onClick ToggleTheme
+        , class "absolute top-6 right-6 text-2xl opacity-70 hover:opacity-100 transition-opacity"
+        ]
+        [ text icon ]
+
 view : Model -> Html Msg
 view model =
-    main_ [ class "text-stone-200 flex items-center justify-center h-screen flex-col" ]
-        [ div []
+    main_ [ class "text-stone-800 dark:text-stone-200 flex items-center justify-center h-screen flex-col transition-colors duration-300 relative" ]
+        [ viewThemeToggle model.theme
+        , div []
             [ viewInfo model.info
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
@@ -552,7 +579,7 @@ viewLayoutSelector currentKind =
                     [ text "ⓘ" ]
                 ]
             , span
-                [ class "absolute left-0 mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 px-4 py-3 bg-stone-900 text-stone-200 text-sm leading-relaxed border border-stone-700 shadow-xl rounded-sm md:block" ]
+                [ class "absolute left-0 mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 px-4 py-3 bg-stone-100 dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-sm leading-relaxed border border-stone-300 dark:border-stone-700 shadow-xl rounded-sm md:block" ]
                 [ div [ class "mb-2" ] [ text description ]
                 , a
                     [ href url
@@ -565,7 +592,7 @@ viewLayoutSelector currentKind =
         , select
             [ onInput (layoutKindFromString >> SelectLayout)
             , class
-                "bg-stone-800 text-stone-200 text-sm border border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-stone-500 hover:bg-stone-700 transition"
+                "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm border border-stone-300 dark:border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 hover:bg-stone-200 dark:hover:bg-stone-700 transition"
             ]
             [ option
                 [ value "SilPowerG"
@@ -633,7 +660,7 @@ viewMetrics metrics =
                 span [ class "text-green-400" ] [ text <| "+" ++ String.fromInt (m.new - m.old) ++ pst ]
 
             else
-                span [ class "text-red-400" ] [ text <| String.fromInt (m.new - m.old) ++ pst ]
+                span [ class "text-red-600 dark:text-red-400" ] [ text <| String.fromInt (m.new - m.old) ++ pst ]
 
         viewMetric m pst =
             span [] [ span [] [ text <| String.fromInt m.new ++ pst ++ "(" ], viewOld m pst, span [] [ text ")" ] ]
@@ -660,13 +687,13 @@ viewDictation dict =
                             || current.state
                             == Incorrect
                     then
-                        "text-red-400"
+                        "text-red-600 dark:text-red-400"
 
                     else if current.state == Rolling then
-                        "text-amber-400"
+                        "text-amber-600 dark:text-amber-400"
 
                     else
-                        "text-teal-400"
+                        "text-teal-600 dark:text-teal-400"
                 Nothing ->
                     ""
 
@@ -674,7 +701,7 @@ viewDictation dict =
             let
                 wasWrong =
                     if lt.wasWrong then
-                        "text-red-400"
+                        "text-red-600 dark:text-red-400"
 
                     else
                         ""
@@ -690,7 +717,7 @@ viewDictation dict =
             case dict.current of
                 Just current ->
                     span
-                        [ class "border-teal-400 border-b-4" ]
+                        [ class "border-teal-600 dark:border-teal-400 border-b-4" ]
                         [ current.letter
                             |> String.fromChar
                             |> String.replace " " " · "
@@ -702,8 +729,8 @@ viewDictation dict =
         viewLetters lts =
             List.map viewLetter lts
     in
-    div [ class "mx-auto border rounded border-2 border-stone-700 p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
-        [ p [ class "inline m-0 p-0 text-stone-500" ] (viewLetters (List.reverse dict.prev))
+    div [ class "mx-auto border rounded border-2 border-stone-300 dark:border-stone-700 p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed transition-colors duration-300" ]
+        [ p [ class "inline m-0 p-0 text-stone-400 dark:text-stone-500" ] (viewLetters (List.reverse dict.prev))
         , p [ class <| String.join " " [ "inline m-0 p-0", currentKeyStyle ] ]
             [ viewCurrentLetter ]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
@@ -757,7 +784,7 @@ viewKeyBoard keyboard =
                 |> viewRow
     in
     div
-        [ class <| "border-2 p-6 rounded border-stone-800 bg-stone-900/50 relative"
+        [ class <| "border-2 p-6 rounded border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 relative transition-colors duration-300"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0 -- Helps make a div focusable and blurable.
@@ -783,13 +810,13 @@ viewKey key =
         bg =
             case key.state of
                 Pressed ->
-                    "bg-teal-500 text-stone-950"
+                    "bg-teal-500 text-stone-50 dark:text-stone-950"
 
                 Released ->
-                    "bg-stone-800 text-stone-300 border border-stone-700"
+                    "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-300 dark:border-stone-700"
 
                 Hinted ->
-                    "transition-colors duration-300 bg-teal-900/50 text-teal-200 border border-teal-700 animate-pulse"
+                    "transition-colors duration-300 bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-200 border border-teal-400 dark:border-teal-700 animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
@@ -944,15 +971,22 @@ init flags =
             Keyboard False NoModifier withModKeys
 
         info =
-            case Decode.decodeValue infoDecoder flags of
+            case Decode.decodeValue (Decode.field "lessonInfo" infoDecoder) flags of
                 Ok m ->
                     m
 
                 Err _ ->
-                    Info initMetric 0
+                    case Decode.decodeValue infoDecoder flags of
+                        Ok m -> m
+                        Err _ -> Info initMetric 0
+
+        themeStr =
+            case Decode.decodeValue (Decode.field "theme" Decode.string) flags of
+                Ok "light" -> Light
+                _ -> Dark
 
         model =
-            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME False
+            Model keyboard (stringToDictation "") info 0 0 curLayout Layout.GeezIME False themeStr
 
         dictation =
             dictGenerators
@@ -1024,3 +1058,6 @@ main =
         , update = update
         , subscriptions = subscriptions
         }
+
+
+port saveTheme : String -> Cmd msg
