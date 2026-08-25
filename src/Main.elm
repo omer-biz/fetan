@@ -47,7 +47,7 @@ type alias Metrics =
 
 type alias Dictation =
     { prev : List Letter
-    , current : Letter
+    , current : Maybe Letter
     , next : List Letter
     }
 
@@ -114,12 +114,11 @@ dictGenerators =
 stringToDictation : String -> Dictation
 stringToDictation str =
     case String.uncons str of
-        -- the "\u{0000}" helps solve the off by one error when checking if the dictation is done
         Just ( curr, next ) ->
-            Dictation (lettersFromString "") (Letter curr Fresh False) (lettersFromString (next ++ "\u{0000}"))
+            Dictation [] (Just (Letter curr Fresh False)) (lettersFromString next)
 
         Nothing ->
-            Dictation (lettersFromString "?") (Letter '?' Fresh False) (lettersFromString "?")
+            Dictation [] Nothing []
 
 
 lettersFromString : String -> List Letter
@@ -207,8 +206,7 @@ update msg model =
 
                 nextLessonIdx =
                     if
-                        List.isEmpty dict.next
-                            == True
+                        (dict.current == Nothing)
                             && metrics.speed.old
                             > 80
                             && metrics.speed.new
@@ -228,7 +226,7 @@ update msg model =
                 , dictation = dict
                 , info = { info | lessonIdx = nextLessonIdx }
               }
-            , if List.isEmpty dict.next then
+            , if dict.current == Nothing then
                 dictGenerators
                     |> Array.get nextLessonIdx
                     |> Maybe.withDefault DictGen.consonantOne
@@ -241,8 +239,12 @@ update msg model =
 
         NewDict dict ->
             let
+                currList =
+                    case dictation.current of
+                        Just c -> [ c ]
+                        Nothing -> []
                 allChars =
-                    List.concat [ dictation.prev, dictation.current :: dictation.next ]
+                    List.concat [ dictation.prev, currList, dictation.next ]
 
                 lenChars =
                     List.length allChars
@@ -281,8 +283,11 @@ update msg model =
         Tick _ ->
             let
                 hints =
-                    Layout.hint dictation.current.letter curLayout
-                        |> hintToList
+                    case dictation.current of
+                        Just curr ->
+                            Layout.hint curr.letter curLayout |> hintToList
+                        Nothing ->
+                            []
 
                 hintedToList =
                     keyboard.keys
@@ -441,37 +446,39 @@ updateDictation :
     -> Dictation
     -> ( Dictation, Layout )
 updateDictation codePoint keybrState layout dictation =
-    let
-        current =
-            dictation.current
+    case dictation.current of
+        Just current ->
+            let
+                advanceDictation =
+                    case dictation.next of
+                        newCurr :: next ->
+                            { dictation
+                                | next = next
+                                , current = Just newCurr
+                                , prev = current :: dictation.prev
+                            }
 
-        advanceDictation =
-            case dictation.next of
-                newCurr :: next ->
-                    { dictation
-                        | next = next
-                        , current = newCurr
-                        , prev = dictation.current :: dictation.prev
-                    }
+                        [] ->
+                            { dictation | current = Nothing, prev = current :: dictation.prev }
 
-                [] ->
-                    dictation
+                wrongAttempt =
+                    { dictation | current = Just { current | state = Incorrect, wasWrong = True } }
 
-        wrongAttempt =
-            { dictation | current = { current | state = Incorrect, wasWrong = True } }
+                rollingCurrent =
+                    { dictation | current = Just { current | state = Rolling } }
+            in
+            case Layout.update keybrState codePoint current.letter layout of
+                ( newLayout, Partial ) ->
+                    ( rollingCurrent, newLayout )
 
-        rollingCurrent =
-            { current | state = Rolling }
-    in
-    case Layout.update keybrState codePoint dictation.current.letter layout of
-        ( newLayout, Partial ) ->
-            ( { dictation | current = rollingCurrent }, newLayout )
+                ( newLayout, Correct ) ->
+                    ( advanceDictation, newLayout )
 
-        ( newLayout, Correct ) ->
-            ( advanceDictation, newLayout )
+                ( newLayout, Wrong ) ->
+                    ( wrongAttempt, newLayout )
 
-        ( newLayout, Wrong ) ->
-            ( wrongAttempt, newLayout )
+        Nothing ->
+            ( dictation, layout )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -646,18 +653,22 @@ viewDictation : Dictation -> Html msg
 viewDictation dict =
     let
         currentKeyStyle =
-            if
-                (dict.current.wasWrong && (dict.current.state /= Rolling))
-                    || dict.current.state
-                    == Incorrect
-            then
-                "text-red-400"
+            case dict.current of
+                Just current ->
+                    if
+                        (current.wasWrong && (current.state /= Rolling))
+                            || current.state
+                            == Incorrect
+                    then
+                        "text-red-400"
 
-            else if dict.current.state == Rolling then
-                "text-yellow-300"
+                    else if current.state == Rolling then
+                        "text-yellow-300"
 
-            else
-                ""
+                    else
+                        ""
+                Nothing ->
+                    ""
 
         viewLetter lt =
             let
@@ -676,13 +687,17 @@ viewDictation dict =
                 ]
 
         viewCurrentLetter =
-            span
-                [ class "border-white border-b-4" ]
-                [ dict.current.letter
-                    |> String.fromChar
-                    |> String.replace " " " · "
-                    |> text
-                ]
+            case dict.current of
+                Just current ->
+                    span
+                        [ class "border-white border-b-4" ]
+                        [ current.letter
+                            |> String.fromChar
+                            |> String.replace " " " · "
+                            |> text
+                        ]
+                Nothing ->
+                    text ""
 
         viewLetters lts =
             List.map viewLetter lts
