@@ -450,7 +450,7 @@ updateDictation codePoint keybrState layout dictation =
                     { dictation
                         | next = next
                         , current = newCurr
-                        , prev = dictation.prev ++ [ dictation.current ]
+                        , prev = dictation.current :: dictation.prev
                     }
 
                 [] ->
@@ -687,7 +687,7 @@ viewDictation dict =
             List.map viewLetter lts
     in
     div [ class "mx-auto border rounded border-2 border-white p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed" ]
-        [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters dict.prev)
+        [ p [ class "inline m-0 p-0 text-gray-400" ] (viewLetters (List.reverse dict.prev))
         , p [ class <| String.join " " [ "inline m-0 p-0", currentKeyStyle ] ]
             [ viewCurrentLetter ]
         , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
