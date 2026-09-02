@@ -676,10 +676,11 @@ layoutInfo kind =
 
 viewInfo : Info -> Html Msg
 viewInfo info =
-    table [ class "font-mono mb-8" ]
-        [ tbody []
-            [ viewMetrics info.metrics
-            , tr [] [ td [ class "pr-2 text-right" ] [ text "Current Keys:" ], viewCurrentKeys info.lessonIdx ]
+    div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
+        [ viewMetrics info.metrics
+        , div [ class "mt-4 flex items-center text-stone-500 dark:text-stone-400 text-sm" ]
+            [ span [ class "mr-3 uppercase tracking-widest font-semibold" ] [ text "Current Keys:" ]
+            , viewCurrentKeys info.lessonIdx
             ]
         ]
 
