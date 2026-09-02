@@ -10,3 +10,12 @@
 body {
     font-family: "NotoSansEthiopic", sans-serif;
 }
+
+@keyframes caretSlide {
+  from { transform: translateX(-0.5ch); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.caret-animate {
+  animation: caretSlide 0.08s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}

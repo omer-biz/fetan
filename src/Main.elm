@@ -5,6 +5,7 @@ import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
+import Html.Keyed as Keyed
 import Html exposing (Html, a, div, main_, option, p, select, span, table, tbody, td, text, tr)
 import Svg exposing (svg, path)
 import Svg.Attributes as SvgAttr
@@ -691,93 +692,105 @@ viewCurrentKeys idx =
         |> Array.get idx
         |> Maybe.withDefault DictGen.consonantOne
         |> DictGen.toList
-        |> List.map (\k -> span [ class "px-1" ] [ text <| String.fromChar k ])
-        |> td []
+        |> List.map (\k -> span [ class "mx-1 bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-2 py-1 rounded" ] [ text <| String.fromChar k ])
+        |> div [ class "flex gap-1" ]
 
 
 viewMetrics : Metrics -> Html msg
 viewMetrics metrics =
     let
-        viewOld m pst =
-            if m.new >= m.old then
-                span [ class "text-green-600 dark:text-green-400" ] [ text <| "+" ++ String.fromInt (m.new - m.old) ++ pst ]
-
-            else
-                span [ class "text-red-600 dark:text-red-400" ] [ text <| String.fromInt (m.new - m.old) ++ pst ]
-
-        viewMetric m pst =
-            span [] [ span [] [ text <| String.fromInt m.new ++ pst ++ "(" ], viewOld m pst, span [] [ text ")" ] ]
+        viewMetric label m pst =
+            div [ class "flex flex-col items-center p-4 bg-white dark:bg-stone-800/80 rounded-xl shadow-sm border border-stone-200 dark:border-stone-700/50 min-w-[120px]" ]
+                [ span [ class "text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold" ] [ text label ]
+                , div [ class "flex items-baseline gap-1" ]
+                    [ span [ class "text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text <| String.fromInt m.new ]
+                    , span [ class "text-sm font-medium text-stone-400 dark:text-stone-500" ] [ text pst ]
+                    ]
+                ]
     in
-    tr []
-        [ td [ class "pr-2 text-right" ]
-            [ text "Metrics:" ]
-        , td [ class "space-x-2" ]
-            [ span [] [ text "Speed: ", viewMetric metrics.speed "wpm" ]
-            , span [] [ text "Accuracy: ", viewMetric metrics.accuracy "%" ]
-            , span [] [ text "Score: ", viewMetric metrics.score "" ]
-            ]
+    div [ class "flex justify-center gap-6 w-full" ]
+        [ viewMetric "Speed" metrics.speed "wpm"
+        , viewMetric "Accuracy" metrics.accuracy "%"
+        , viewMetric "Score" metrics.score ""
         ]
 
 
 viewDictation : Dictation -> Html msg
 viewDictation dict =
     let
-        currentKeyStyle =
-            case dict.current of
-                Just current ->
-                    if
-                        (current.wasWrong && (current.state /= Rolling))
-                            || current.state
-                            == Incorrect
-                    then
-                        "text-red-600 dark:text-red-400"
+        currentIndex =
+            List.length dict.prev
 
-                    else if current.state == Rolling then
-                        "text-amber-600 dark:text-amber-400"
+        allLetters =
+            List.reverse dict.prev
+                ++ (case dict.current of
+                        Just c ->
+                            [ c ]
 
-                    else
-                        "text-teal-600 dark:text-teal-400"
-                Nothing ->
-                    ""
+                        Nothing ->
+                            []
+                   )
+                ++ dict.next
 
-        viewLetter lt =
+        viewLetter idx lt =
             let
+                isCurrent =
+                    idx == currentIndex
+
+                isSpace =
+                    lt.letter == ' '
+
                 wasWrong =
                     if lt.wasWrong then
                         "text-red-600 dark:text-red-400"
 
                     else
                         ""
+
+                spaceClass =
+                    if isSpace then
+                        " min-w-[0.6em] text-center"
+
+                    else
+                        ""
+
+                colorClass =
+                    if isCurrent then
+                        if (lt.wasWrong && (lt.state /= Rolling)) || lt.state == Incorrect then
+                            "bg-red-500/20 dark:bg-red-500/30 text-red-600 dark:text-red-400"
+                        else if lt.state == Rolling then
+                            "bg-amber-500/20 dark:bg-amber-500/30 text-amber-600 dark:text-amber-400"
+                        else
+                            "bg-teal-500/20 dark:bg-teal-500/30 text-teal-600 dark:text-teal-400"
+                    else if idx < currentIndex then
+                        "text-stone-300 dark:text-stone-600"
+                    else
+                        "text-stone-800 dark:text-stone-200"
+
+                classes =
+                    String.join " " [ "relative inline-block rounded-sm transition-colors duration-200", wasWrong, spaceClass, colorClass ]
+
+                caret =
+                    if isCurrent then
+                        span [ class "absolute -left-[1px] w-[3px] h-[90%] top-[5%] bg-teal-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(20,184,166,0.8)] caret-animate" ] []
+
+                    else
+                        text ""
             in
-            span [ class wasWrong ]
-                [ lt.letter
-                    |> String.fromChar
-                    |> String.replace " " " · "
-                    |> text
+            ( String.fromInt idx
+            , span [ class classes ]
+                [ caret
+                , if isSpace then
+                    text "·"
+
+                  else
+                    text (String.fromChar lt.letter)
                 ]
-
-        viewCurrentLetter =
-            case dict.current of
-                Just current ->
-                    span
-                        [ class "border-teal-600 dark:border-teal-400 border-b-4" ]
-                        [ current.letter
-                            |> String.fromChar
-                            |> String.replace " " " · "
-                            |> text
-                        ]
-                Nothing ->
-                    text ""
-
-        viewLetters lts =
-            List.map viewLetter lts
+            )
     in
-    div [ class "mx-auto border rounded border-2 border-stone-300 dark:border-stone-700 p-4 mb-4 max-w-[800px] text-3xl font-normal leading-relaxed transition-colors duration-300" ]
-        [ p [ class "inline m-0 p-0 text-stone-400 dark:text-stone-500" ] (viewLetters (List.reverse dict.prev))
-        , p [ class <| String.join " " [ "inline m-0 p-0", currentKeyStyle ] ]
-            [ viewCurrentLetter ]
-        , p [ class "inline m-0 p-0" ] (viewLetters dict.next)
-        ]
+    Keyed.node "div"
+        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-8 mb-8 max-w-[800px] w-full text-4xl font-normal leading-loose tracking-wide shadow-sm transition-colors duration-300" ]
+        (List.indexedMap viewLetter allLetters)
 
 
 keyDown : msg -> Html.Attribute msg
