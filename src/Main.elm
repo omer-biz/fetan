@@ -847,26 +847,83 @@ viewRow row =
     div [ class "flex gap-1 py-1" ] row
 
 
+fingerColorClass : String -> String
+fingerColorClass code =
+    case code of
+        "KeyQ" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "KeyA" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "KeyZ" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "ShiftLeft" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "Tab" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "CapsLock" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+
+        "KeyW" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
+        "KeyS" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
+        "KeyX" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
+
+        "KeyE" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+        "KeyD" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+        "KeyC" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+
+        "KeyR" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "KeyF" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "KeyV" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "KeyT" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "KeyG" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "KeyB" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyY" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "KeyH" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "KeyN" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "KeyU" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "KeyJ" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "KeyM" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyI" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+        "KeyK" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+        "Comma" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+
+        "KeyO" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+        "KeyL" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+        "Period" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+
+        "KeyP" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "Semicolon" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "Slash" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "BracketLeft" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "BracketRight" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "Quote" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "Backslash" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "ShiftRight" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "Enter" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Space" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        "AltLeft" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        "AltRight" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        "ControlLeft" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        "ControlRight" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        _ -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
 viewKey : Key -> Html msg
 viewKey key =
     let
         bg =
             case key.state of
                 Pressed ->
-                    "bg-teal-500 text-stone-50 dark:text-stone-950"
+                    "bg-teal-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
 
                 Released ->
-                    "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border border-stone-300 dark:border-stone-700"
+                    "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ (fingerColorClass key.code)
 
                 Hinted ->
-                    "transition-colors duration-300 bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-200 border border-teal-400 dark:border-teal-700 animate-pulse"
+                    "transition-colors duration-300 bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse" 
 
         extraStyle =
             Dict.get key.code specialKeys
                 |> Maybe.withDefault ""
     in
     div
-        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded shadow font-semibold w-12", bg, extraStyle ] ]
+        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-lg shadow-sm font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
         [ text key.view
         , case String.split "Key" key.code of
             "" :: "F" :: [] ->
