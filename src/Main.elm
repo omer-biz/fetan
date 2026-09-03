@@ -42,6 +42,7 @@ type alias Info =
     { metrics : Metrics
     , lessonIdx : Int
     , layoutKind : String
+    , dictationsCompleted : Int
     }
 
 
@@ -207,27 +208,23 @@ update msg model =
                 ( dict, layout ) =
                     updateDictation key keyboard.modifier model.currentLayout dictation
 
-                nextLessonIdx =
-                    if
-                        (dict.current == Nothing)
-                            && metrics.speed.old
-                            > 80
-                            && metrics.speed.new
-                            > 80
-                            && metrics.accuracy.new
-                            > 80
-                            && (info.lessonIdx < 33)
-                    then
-                        info.lessonIdx + 1
-
+                (nextLessonIdx, nextCompleted) =
+                    if dict.current == Nothing then
+                        let
+                            completed = info.dictationsCompleted + 1
+                        in
+                        if completed >= 3 && info.lessonIdx < 34 then
+                            (info.lessonIdx + 1, 0)
+                        else
+                            (info.lessonIdx, completed)
                     else
-                        info.lessonIdx
+                        (info.lessonIdx, info.dictationsCompleted)
             in
             ( { model
                 | keyboard = { keyboard | keys = updateKey key Released }
                 , currentLayout = layout
                 , dictation = dict
-                , info = { info | lessonIdx = nextLessonIdx }
+                , info = { info | lessonIdx = nextLessonIdx, dictationsCompleted = nextCompleted }
               }
             , if dict.current == Nothing then
                 DictGen.genForLevel nextLessonIdx
@@ -1069,7 +1066,7 @@ init flags =
                 Err _ ->
                     case Decode.decodeValue infoDecoder flags of
                         Ok m -> m
-                        Err _ -> Info initMetric 1 "GeezIME"
+                        Err _ -> Info initMetric 1 "GeezIME" 0
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
@@ -1125,10 +1122,11 @@ metricsDecoder =
 
 infoDecoder : Decode.Decoder Info
 infoDecoder =
-    Decode.map3 Info
+    Decode.map4 Info
         (Decode.field "metrics" metricsDecoder)
         (Decode.field "lessonIdx" Decode.int)
         (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
+        (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -1151,6 +1149,7 @@ encodeInfo info =
         [ ( "metrics", encodeMetrics info.metrics )
         , ( "lessonIdx", Encode.int info.lessonIdx )
         , ( "layoutKind", Encode.string info.layoutKind )
+        , ( "dictationsCompleted", Encode.int info.dictationsCompleted )
         ]
 
 
