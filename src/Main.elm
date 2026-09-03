@@ -681,7 +681,7 @@ viewInfo info =
 viewCurrentKeys : Int -> Html msg
 viewCurrentKeys idx =
     let
-        effIdx = max 1 idx
+        effIdx = clamp 1 33 idx
         unlocked = List.take effIdx DictGen.learningSequence
         newest = List.drop (effIdx - 1) DictGen.learningSequence |> List.head |> Maybe.withDefault 'ሀ'
     in
@@ -1069,7 +1069,7 @@ init flags =
                 Err _ ->
                     case Decode.decodeValue infoDecoder flags of
                         Ok m -> m
-                        Err _ -> Info initMetric 0 "GeezIME"
+                        Err _ -> Info initMetric 1 "GeezIME"
 
         curLayoutKind =
             layoutKindFromString info.layoutKind

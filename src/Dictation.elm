@@ -14,8 +14,10 @@ learningSequence =
 genForLevel : Int -> Generator String
 genForLevel level =
     let
+        effLevel = clamp 1 33 level
+
         wordsList = 
-            Dict.get level Words.byLesson 
+            Dict.get effLevel Words.byLesson 
                 |> Maybe.withDefault [ "ሀለበመ" ]
         
         safeWords = 
