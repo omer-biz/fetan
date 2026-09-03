@@ -114,11 +114,6 @@ wordCount =
     10
 
 
-dictGenerators : Array (DictGen.Nonempty Char)
-dictGenerators =
-    Array.fromList [ DictGen.consonantOne, DictGen.consonantTwo, DictGen.consonantThree, DictGen.consonantFour, DictGen.all ]
-
-
 stringToDictation : String -> Dictation
 stringToDictation str =
     case String.uncons str of
@@ -221,7 +216,7 @@ update msg model =
                             > 80
                             && metrics.accuracy.new
                             > 80
-                            && (info.lessonIdx + 1 < Array.length dictGenerators)
+                            && (info.lessonIdx < 33)
                     then
                         info.lessonIdx + 1
 
@@ -235,10 +230,7 @@ update msg model =
                 , info = { info | lessonIdx = nextLessonIdx }
               }
             , if dict.current == Nothing then
-                dictGenerators
-                    |> Array.get nextLessonIdx
-                    |> Maybe.withDefault DictGen.consonantOne
-                    |> DictGen.genFromList wordCount
+                DictGen.genForLevel nextLessonIdx
                     |> Random.generate NewDict
 
               else
@@ -688,12 +680,20 @@ viewInfo info =
 
 viewCurrentKeys : Int -> Html msg
 viewCurrentKeys idx =
-    dictGenerators
-        |> Array.get idx
-        |> Maybe.withDefault DictGen.consonantOne
-        |> DictGen.toList
-        |> List.map (\k -> span [ class "mx-0.5 md:mx-1 bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs md:text-sm" ] [ text <| String.fromChar k ])
-        |> div [ class "flex flex-wrap gap-1 justify-center" ]
+    let
+        effIdx = max 1 idx
+        unlocked = List.take effIdx DictGen.learningSequence
+        newest = List.drop (effIdx - 1) DictGen.learningSequence |> List.head |> Maybe.withDefault 'ሀ'
+    in
+    div [ class "flex flex-wrap gap-1 md:gap-1.5 justify-center" ]
+        (List.map (\c -> 
+            let
+                isNewest = c == newest
+                bgColor = if isNewest then "bg-teal-500 text-white shadow-md shadow-teal-500/20" else "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
+            in
+            span [ class ("mx-0.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs md:text-sm font-medium transition-all " ++ bgColor) ] 
+                [ text (String.fromChar c) ]
+        ) unlocked)
 
 
 viewMetrics : Metrics -> Html msg
@@ -1103,10 +1103,7 @@ init flags =
             Model keyboard (stringToDictation "") info 0 0 curLayout curLayoutKind False themeStr
 
         dictation =
-            dictGenerators
-                |> Array.get info.lessonIdx
-                |> Maybe.withDefault DictGen.consonantOne
-                |> DictGen.genFromList wordCount
+            DictGen.genForLevel info.lessonIdx
     in
     ( model, Random.generate NewDict dictation )
 
