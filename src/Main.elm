@@ -563,9 +563,9 @@ viewThemeToggle theme =
 
 view : Model -> Html Msg
 view model =
-    main_ [ class "text-stone-800 dark:text-stone-200 flex items-center justify-center h-screen flex-col transition-colors duration-300 relative" ]
+    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center justify-center min-h-screen transition-colors duration-300 relative px-4 sm:px-8 py-12" ]
         [ viewThemeToggle model.theme
-        , div []
+        , div [ class "w-full max-w-[800px] flex flex-col items-center" ]
             [ viewInfo model.info
             , viewDictation model.dictation
             , viewKeyBoard model.keyboard
@@ -612,7 +612,7 @@ viewLayoutSelector currentKind =
         ( description, url ) =
             layoutInfo currentKind
     in
-    div [ class "flex items-center gap-3 mb-4 w-full pt-4 justify-end" ]
+    div [ class "flex items-center gap-3 mb-4 w-full pt-8 md:pt-4 justify-center md:justify-end" ]
         [ div [ class "relative group inline-block hover:text-gray-100 transition" ]
             [ span
                 [ class "relative font-medium text-zinc-400 cursor-help hover:text-gray-100 transition pr-4" ]
@@ -692,23 +692,23 @@ viewCurrentKeys idx =
         |> Array.get idx
         |> Maybe.withDefault DictGen.consonantOne
         |> DictGen.toList
-        |> List.map (\k -> span [ class "mx-1 bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-2 py-1 rounded" ] [ text <| String.fromChar k ])
-        |> div [ class "flex gap-1" ]
+        |> List.map (\k -> span [ class "mx-0.5 md:mx-1 bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-1.5 md:px-2 py-0.5 md:py-1 rounded text-xs md:text-sm" ] [ text <| String.fromChar k ])
+        |> div [ class "flex flex-wrap gap-1 justify-center" ]
 
 
 viewMetrics : Metrics -> Html msg
 viewMetrics metrics =
     let
         viewMetric label m pst =
-            div [ class "flex flex-col items-center p-4 bg-white dark:bg-stone-800/80 rounded-xl shadow-sm border border-stone-200 dark:border-stone-700/50 min-w-[120px]" ]
-                [ span [ class "text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold" ] [ text label ]
+            div [ class "flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-xl shadow-sm border border-stone-200 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
+                [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold text-center" ] [ text label ]
                 , div [ class "flex items-baseline gap-1" ]
-                    [ span [ class "text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text <| String.fromInt m.new ]
-                    , span [ class "text-sm font-medium text-stone-400 dark:text-stone-500" ] [ text pst ]
+                    [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text <| String.fromInt m.new ]
+                    , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500" ] [ text pst ]
                     ]
                 ]
     in
-    div [ class "flex justify-center gap-6 w-full" ]
+    div [ class "flex flex-wrap justify-center gap-3 md:gap-6 w-full" ]
         [ viewMetric "Speed" metrics.speed "wpm"
         , viewMetric "Accuracy" metrics.accuracy "%"
         , viewMetric "Score" metrics.score ""
@@ -740,13 +740,6 @@ viewDictation dict =
                 isSpace =
                     lt.letter == ' '
 
-                wasWrong =
-                    if lt.wasWrong then
-                        "text-red-600 dark:text-red-400"
-
-                    else
-                        ""
-
                 spaceClass =
                     if isSpace then
                         " min-w-[0.6em] text-center"
@@ -763,12 +756,15 @@ viewDictation dict =
                         else
                             "bg-teal-500/20 dark:bg-teal-500/30 text-teal-600 dark:text-teal-400"
                     else if idx < currentIndex then
-                        "text-stone-300 dark:text-stone-600"
+                        if lt.wasWrong then
+                            "text-red-600 dark:text-red-400 opacity-60"
+                        else
+                            "text-stone-300 dark:text-stone-600"
                     else
                         "text-stone-800 dark:text-stone-200"
 
                 classes =
-                    String.join " " [ "relative inline-block rounded-sm transition-colors duration-200", wasWrong, spaceClass, colorClass ]
+                    String.join " " [ "relative inline-block rounded-sm transition-colors duration-200", spaceClass, colorClass ]
 
                 caret =
                     if isCurrent then
@@ -789,7 +785,7 @@ viewDictation dict =
             )
     in
     Keyed.node "div"
-        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-8 mb-8 max-w-[800px] w-full text-4xl font-normal leading-loose tracking-wide shadow-sm transition-colors duration-300" ]
+        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm transition-colors duration-300" ]
         (List.indexedMap viewLetter allLetters)
 
 
@@ -839,19 +835,21 @@ viewKeyBoard keyboard =
                 |> List.map viewKey
                 |> viewRow
     in
-    div
-        [ class <| "border-2 p-6 rounded border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 relative transition-colors duration-300"
-        , onFocus FocusKeyBr
-        , onBlur BlurKeyBr
-        , tabindex 0 -- Helps make a div focusable and blurable.
-        , keyDown NoOp
-        , keyUp NoOp
-        ]
-        [ firstRow
-        , secondRow
-        , thirdRow
-        , fourthRow
-        , isfocused
+    div [ class "w-full overflow-hidden flex justify-center pb-8 -mb-8" ]
+        [ div
+            [ class <| "border-2 p-3 sm:p-4 md:p-6 rounded-xl border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 relative transition-all duration-300 transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] lg:scale-100"
+            , onFocus FocusKeyBr
+            , onBlur BlurKeyBr
+            , tabindex 0 -- Helps make a div focusable and blurable.
+            , keyDown NoOp
+            , keyUp NoOp
+            ]
+            [ firstRow
+            , secondRow
+            , thirdRow
+            , fourthRow
+            , isfocused
+            ]
         ]
 
 
