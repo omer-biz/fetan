@@ -26,7 +26,6 @@ body {
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
-  display: block;
 }
 
 .transition-to-dark::view-transition-old(root) {
