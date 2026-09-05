@@ -9,6 +9,7 @@ import Chart.Attributes as CA
 import Chart.Events as CE
 import Chart.Item as CI
 import Stats exposing (SessionRecord, LetterStat)
+import Community
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
@@ -49,6 +50,7 @@ type alias Model =
     , route : Route
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
     , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
+    , communityData : Community.Model
     }
 
 
@@ -57,11 +59,14 @@ type alias Model =
 type Route
     = TypingRoute
     | StatsRoute
+    | CommunityRoute
 
 routeFromUrl : Url -> Route
 routeFromUrl url =
     if url.fragment == Just "stats" then
         StatsRoute
+    else if url.fragment == Just "community" then
+        CommunityRoute
     else
         TypingRoute
 
@@ -150,6 +155,8 @@ type Msg
     | UrlRequested Browser.UrlRequest
     | UrlChanged Url
     | GoTo Route
+    | CommunityMsg Community.Msg
+    | GotCommunityStats Encode.Value
     | OnHoverStats (List (CI.One { index : Float, record : SessionRecord } CI.Dot))
     | OnHoverMastery (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar))
 
@@ -601,7 +608,11 @@ update msg model =
                     ( model, Nav.load href )
 
         UrlChanged url ->
-            ( { model | route = routeFromUrl url }, Cmd.none )
+            let
+                newRoute = routeFromUrl url
+                cmd = if newRoute == CommunityRoute then fetchCommunityStats () else Cmd.none
+            in
+            ( { model | route = newRoute }, cmd )
 
         GoTo route ->
             let
@@ -612,6 +623,9 @@ update msg model =
 
                         StatsRoute ->
                             "/#stats"
+
+                        CommunityRoute ->
+                            "/#community"
             in
             ( model, Nav.pushUrl model.navKey urlStr )
 
@@ -620,6 +634,16 @@ update msg model =
 
         OnHoverMastery items ->
             ( { model | hoveringMastery = items }, Cmd.none )
+
+        CommunityMsg cMsg ->
+            let
+                ( newComm, cCmd ) =
+                    Community.update cMsg model.communityData
+            in
+            ( { model | communityData = newComm }, Cmd.map CommunityMsg cCmd )
+
+        GotCommunityStats val ->
+            ( { model | communityData = Community.handleReceiveStats val model.communityData }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -786,6 +810,23 @@ viewThemeToggle theme =
         [ icon ]
 
 
+communityIcon : Html msg
+communityIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        , SvgAttr.class "w-5 h-5"
+        ]
+        [ Svg.path [ SvgAttr.d "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" ] []
+        , Svg.circle [ SvgAttr.cx "9", SvgAttr.cy "7", SvgAttr.r "4" ] []
+        , Svg.path [ SvgAttr.d "M23 21v-2a4 4 0 0 0-3-3.87" ] []
+        , Svg.path [ SvgAttr.d "M16 3.13a4 4 0 0 1 0 7.75" ] []
+        ]
+
 statsIcon : Html msg
 statsIcon =
     Svg.svg
@@ -812,18 +853,25 @@ viewHeader model =
             ]
         , div [ class "flex items-center gap-4 md:gap-6" ]
             [ viewLayoutSelector model.layoutKind
-            , if model.route == StatsRoute then
+            , if model.route == StatsRoute || model.route == CommunityRoute then
                 Html.button
                     [ Html.Events.onClick (GoTo TypingRoute)
                     , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center text-sm font-medium gap-1" 
                     ]
                     [ text "Back" ]
               else
-                Html.button
-                    [ Html.Events.onClick (GoTo StatsRoute)
-                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                Html.div [ class "flex items-center gap-3" ]
+                    [ Html.button
+                        [ Html.Events.onClick (GoTo StatsRoute)
+                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                        ]
+                        [ statsIcon ]
+                    , Html.button
+                        [ Html.Events.onClick (GoTo CommunityRoute)
+                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                        ]
+                        [ communityIcon ]
                     ]
-                    [ statsIcon ]
             , viewThemeToggle model.theme
             ]
         ]
@@ -840,6 +888,8 @@ view model =
                 [ viewHeader model
                 , if model.route == StatsRoute then
                     Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime } OnHoverStats OnHoverMastery
+                  else if model.route == CommunityRoute then
+                    Html.map CommunityMsg (Community.view model.communityData)
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info
@@ -1376,15 +1426,21 @@ viewKey modifier key =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.keyboard.focusKeyBr then
-        Sub.batch
-            [ onKeyDown <| Decode.map dispatchDown keyDecoder
-            , onKeyUp <| Decode.map dispatchUp keyDecoder
-            , Time.every 1000 Tick
-            ]
-
-    else
-        Sub.none
+    let
+        kbSubs =
+            if model.keyboard.focusKeyBr then
+                Sub.batch
+                    [ onKeyDown <| Decode.map dispatchDown keyDecoder
+                    , onKeyUp <| Decode.map dispatchUp keyDecoder
+                    , Time.every 1000 Tick
+                    ]
+            else
+                Sub.none
+    in
+    Sub.batch
+        [ kbSubs
+        , receiveCommunityStats GotCommunityStats
+        ]
 
 
 modifierKeys : List String
@@ -1553,12 +1609,13 @@ init flags url navKey =
             , route = routeFromUrl url
             , hoveringStats = []
             , hoveringMastery = []
+            , communityData = Community.init
             }
 
         dictation =
             DictGen.genForLevel info.lessonIdx
     in
-    ( model, Random.generate NewDict dictation )
+    ( model, Cmd.batch [ Random.generate NewDict dictation, if model.route == CommunityRoute then fetchCommunityStats () else Cmd.none ] )
 
 
 metricDecoder : Decode.Decoder { old : Int, new : Int }
@@ -1678,3 +1735,5 @@ main =
 
 port saveTheme : String -> Cmd msg
 port trackEvent : Encode.Value -> Cmd msg
+port fetchCommunityStats : () -> Cmd msg
+port receiveCommunityStats : (Encode.Value -> msg) -> Sub msg
