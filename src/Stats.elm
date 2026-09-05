@@ -141,6 +141,32 @@ formatDate ts =
     in
     month ++ " " ++ day
 
+
+formatDateTime : Float -> String
+formatDateTime ts =
+    let
+        posix = Time.millisToPosix (round ts)
+        month = 
+            case Time.toMonth Time.utc posix of
+                Time.Jan -> "Jan"
+                Time.Feb -> "Feb"
+                Time.Mar -> "Mar"
+                Time.Apr -> "Apr"
+                Time.May -> "May"
+                Time.Jun -> "Jun"
+                Time.Jul -> "Jul"
+                Time.Aug -> "Aug"
+                Time.Sep -> "Sep"
+                Time.Oct -> "Oct"
+                Time.Nov -> "Nov"
+                Time.Dec -> "Dec"
+        day = String.fromInt (Time.toDay Time.utc posix)
+        h = Time.toHour Time.utc posix
+        m = Time.toMinute Time.utc posix
+        pad n = if n < 10 then "0" ++ String.fromInt n else String.fromInt n
+    in
+    month ++ " " ++ day ++ " at " ++ pad h ++ ":" ++ pad m
+
 viewTimelineChart : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> Html msg
 viewTimelineChart data onHover =
     let
@@ -170,8 +196,9 @@ viewTimelineChart data onHover =
                     rec = (CI.getData item).record
                 in
                 [ C.tooltip item [] [] 
-                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800" ] 
-                        [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                        [ Html.div [ class "text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1" ] [ Html.text (formatDateTime rec.timestamp) ]
+                        , Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
                         , Html.div [] [ Html.text ("Lesson: " ++ String.fromInt rec.lessonIdx) ]
                         , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " (Set.toList (Set.fromList rec.errors))) ]
