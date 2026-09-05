@@ -692,20 +692,55 @@ viewThemeToggle theme =
     Html.button
         [ Html.Events.onClick ToggleTheme
         , Html.Attributes.id "theme-toggle"
-        , class "absolute top-6 right-6 text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity"
+        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
         ]
         [ icon ]
 
 
+statsIcon : Html msg
+statsIcon =
+    Svg.svg
+        [ SvgAttr.width "20"
+        , SvgAttr.height "20"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M3 3v18h18" ] []
+        , Svg.path [ SvgAttr.d "M18 17V9" ] []
+        , Svg.path [ SvgAttr.d "M13 17V5" ] []
+        , Svg.path [ SvgAttr.d "M8 17v-3" ] []
+        ]
+
+viewHeader : Model -> Html Msg
+viewHeader model =
+    Html.header [ class "relative z-10 w-full flex justify-between items-center mb-8" ]
+        [ div [ class "flex items-center" ]
+            [ span [ class "text-2xl font-bold tracking-widest text-teal-600 dark:text-teal-400" ] [ text "ፈጠን" ]
+            ]
+        , div [ class "flex items-center gap-4 md:gap-6" ]
+            [ viewLayoutSelector model.layoutKind
+            , Html.button
+                [ class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" ]
+                [ statsIcon ]
+            , viewThemeToggle model.theme
+            ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
-    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center justify-center min-h-screen relative px-4 sm:px-8 py-12" ]
-        [ viewThemeToggle model.theme
-        , div [ class "w-full max-w-[800px] flex flex-col items-center" ]
-            [ viewInfo model.info
-            , viewDictation model.dictation
-            , viewKeyBoard model.keyboard
-            , viewLayoutSelector model.layoutKind
+    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6" ]
+        [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
+            [ viewHeader model
+            , div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
+                [ viewInfo model.info
+                , viewDictation model.dictation
+                , viewKeyBoard model.keyboard
+                ]
             ]
         , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
             [ text "an open-source project | made by "
@@ -754,7 +789,7 @@ viewLayoutSelector currentKind =
         ( description, url ) =
             layoutInfo currentKind
     in
-    div [ class "flex items-center gap-3 mb-4 w-full pt-8 md:pt-4 justify-center md:justify-end" ]
+    div [ class "flex items-center gap-2" ]
         [ div [ class "relative group inline-block hover:text-gray-100 transition" ]
             [ span
                 [ class "relative font-medium text-zinc-400 cursor-help hover:text-gray-100 transition pr-4" ]
