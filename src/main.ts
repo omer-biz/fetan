@@ -98,7 +98,7 @@ function updateCaret() {
     if (active) {
         if (!caretElement) {
             caretElement = document.createElement('div');
-            caretElement.className = 'absolute bg-teal-500/20 dark:bg-teal-500/30 rounded-sm pointer-events-none z-0';
+            caretElement.className = 'absolute top-0 left-0 bg-teal-500/20 dark:bg-teal-500/30 rounded-sm pointer-events-none z-0';
             caretElement.style.transition = 'transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out';
             caretElement.style.transformOrigin = 'top left';
             
