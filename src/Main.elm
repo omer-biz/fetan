@@ -812,44 +812,40 @@ viewInfo : Info -> Html Msg
 viewInfo info =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
         [ viewMetrics info
-        , div [ class "mt-4 flex items-center text-stone-500 dark:text-stone-400 text-sm" ]
-            [ span [ class "mr-3 uppercase tracking-widest font-semibold" ] [ text "Current Keys:" ]
-            , viewCurrentKeys info.lessonIdx
+        , div [ class "mt-4 w-full flex justify-center" ]
+            [ viewProgression info.lessonIdx
             ]
         ]
 
 
-viewCurrentKeys : Int -> Html msg
-viewCurrentKeys idx =
+viewProgression : Int -> Html msg
+viewProgression idx =
     let
         effIdx =
             clamp 1 33 idx
-
-        unlocked =
-            List.take effIdx DictGen.learningSequence
-
-        newest =
-            List.drop (effIdx - 1) DictGen.learningSequence |> List.head |> Maybe.withDefault 'ሀ'
     in
-    div [ class "flex flex-wrap gap-1 md:gap-1.5 justify-center" ]
-        (List.map
-            (\c ->
+    div [ class "flex flex-wrap gap-2 md:gap-3 justify-center items-baseline text-sm md:text-base select-none mt-2" ]
+        (List.indexedMap
+            (\i c ->
                 let
-                    isNewest =
-                        c == newest
-
-                    bgColor =
-                        if isNewest then
-                            "bg-teal-500 text-white shadow-md shadow-teal-500/20"
-
+                    letterIdx = i + 1
+                    
+                    stateClasses =
+                        if letterIdx < effIdx then
+                            "text-stone-800 dark:text-stone-200 font-medium"
+                        else if letterIdx == effIdx then
+                            "text-teal-600 dark:text-teal-400 font-bold border-b-2 border-teal-500/50 pb-0.5"
                         else
-                            "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
+                            "text-stone-400 dark:text-stone-500 font-normal opacity-80"
                 in
-                span [ class ("mx-0.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs md:text-sm font-medium transition-all " ++ bgColor) ]
+                span [ class ("transition-colors duration-300 " ++ stateClasses) ]
                     [ text (String.fromChar c) ]
             )
-            unlocked
+            DictGen.learningSequence
         )
+
+
+
 
 
 viewMetrics : Info -> Html msg
