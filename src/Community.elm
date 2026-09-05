@@ -142,12 +142,20 @@ viewBarChart title desc data xMap =
                 , CA.width 400
                 , CA.margin { top = 10, bottom = 30, left = 40, right = 10 }
                 ]
-                [ C.xLabels [ CA.color "var(--chart-text)" ]
+                [ C.xLabels 
+                    [ CA.color "var(--chart-text)"
+                    , CA.format (\x -> 
+                        List.head (List.drop (round x - 1) data) 
+                            |> Maybe.map (\(idx, _) -> String.fromInt idx) 
+                            |> Maybe.withDefault ""
+                      )
+                    , CA.amount (List.length data)
+                    ]
                 , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
                 , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
-                , C.series xMap
-                    [ C.bars (\(_, count) -> toFloat count) [ CA.color "var(--chart-primary)", CA.roundTop 4 ]
-                    ]
+                , C.bars
+                    [ CA.margin 0.2 ]
+                    [ C.bar (\(_, count) -> toFloat count) [ CA.color "var(--chart-primary)", CA.roundTop 4 ] ]
                     data
                 ]
             ]
@@ -169,12 +177,20 @@ viewLetterChart title desc data =
                 , CA.width 400
                 , CA.margin { top = 10, bottom = 30, left = 40, right = 10 }
                 ]
-                [ C.xLabels [ CA.color "var(--chart-text)", CA.format (\x -> List.head (List.drop (round x) indexedData) |> Maybe.map .letter |> Maybe.withDefault "") ]
+                [ C.xLabels 
+                    [ CA.color "var(--chart-text)"
+                    , CA.format (\x -> 
+                        List.head (List.drop (round x - 1) indexedData) 
+                            |> Maybe.map .letter 
+                            |> Maybe.withDefault ""
+                      )
+                    , CA.amount (List.length data)
+                    ]
                 , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
                 , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
-                , C.series .index
-                    [ C.bars (\d -> toFloat d.count) [ CA.color "var(--chart-secondary)", CA.roundTop 4 ]
-                    ]
+                , C.bars
+                    [ CA.margin 0.2 ]
+                    [ C.bar (\d -> toFloat d.count) [ CA.color "var(--chart-secondary)", CA.roundTop 4 ] ]
                     indexedData
                 ]
             ]
