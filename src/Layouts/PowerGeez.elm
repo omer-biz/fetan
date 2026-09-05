@@ -64,28 +64,25 @@ update keybrState codePoint currentLetter model =
                 Wrong
     in
     if attempt == currentLetter then
-        ( model, Correct )
+        ( { model | partial = Nothing }, Correct )
 
     else if model.partial /= Nothing && capsIsOn && codePoint == "KeyA" then
-        ( model
-        , model.partial
-            |> Maybe.map checkComboPartial
-            |> Maybe.withDefault Wrong
-        )
+        let 
+            res = model.partial |> Maybe.map checkComboPartial |> Maybe.withDefault Wrong
+        in
+        if res == Correct then ( { model | partial = Nothing }, Correct ) else ( model, res )
 
     else if model.partial /= Nothing && capsIsOn && codePoint == "KeyW" then
-        ( model
-        , model.partial
-            |> Maybe.map packInfo
-            |> Maybe.withDefault Wrong
-        )
+        let
+            res = model.partial |> Maybe.map packInfo |> Maybe.withDefault Wrong
+        in
+        if res == Correct then ( { model | partial = Nothing }, Correct ) else ( model, res )
 
     else if attemptUnicode >= 0x12A1 && attemptUnicode <= 0x12A7 then
-        ( model
-        , model.partial
-            |> Maybe.map checkPartial
-            |> Maybe.withDefault Wrong
-        )
+        let
+            res = model.partial |> Maybe.map checkPartial |> Maybe.withDefault Wrong
+        in
+        if res == Correct then ( { model | partial = Nothing }, Correct ) else ( model, res )
 
     else if (clUnicode - attemptUnicode) > 0 && (clUnicode - attemptUnicode) <= 7 then
         ( { model | partial = Just attempt }, Partial )
