@@ -1107,8 +1107,8 @@ viewKeyBoard keyboard =
     let
         isfocused =
             if keyboard.focusKeyBr == False then
-                div [ class "absolute z-20 inset-0 bg-opacity-5 backdrop-blur-sm flex items-center justify-center cursor-pointer" ]
-                    [ span [ class "text-lg font-semibold text-gray-100" ] [ text "Click to Start" ] ]
+                div [ class "absolute z-20 inset-0 bg-stone-100/40 dark:bg-stone-900/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer rounded-xl transition-all duration-300" ]
+                    [ span [ class "text-lg md:text-xl font-medium text-stone-700 dark:text-stone-300 tracking-wide px-6 py-3 bg-white/80 dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.06)] dark:shadow-none border border-stone-200/50 dark:border-stone-700/50" ] [ text "Click to start" ] ]
 
             else
                 text ""
