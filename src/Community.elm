@@ -155,7 +155,7 @@ viewBarChart title desc data xMap =
                 , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
                 , C.bars
                     [ CA.margin 0.2 ]
-                    [ C.bar (\(_, count) -> toFloat count) [ CA.color "var(--chart-primary)", CA.roundTop 4 ] ]
+                    [ C.bar (\(_, count) -> toFloat count) [ CA.color "var(--chart-primary)"] ]
                     data
                 ]
             ]
@@ -190,7 +190,7 @@ viewLetterChart title desc data =
                 , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
                 , C.bars
                     [ CA.margin 0.2 ]
-                    [ C.bar (\d -> toFloat d.count) [ CA.color "var(--chart-secondary)", CA.roundTop 4 ] ]
+                    [ C.bar (\d -> toFloat d.count) [ CA.color "var(--chart-secondary)"] ]
                     indexedData
                 ]
             ]
