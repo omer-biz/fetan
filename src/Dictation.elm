@@ -3,33 +3,40 @@ module Dictation exposing
     , learningSequence
     )
 
+import Dict exposing (Dict)
 import Random exposing (Generator)
 import Words
-import Dict exposing (Dict)
+
 
 learningSequence : List Char
 learningSequence =
-    [ 'ሀ', 'ለ', 'በ', 'መ', 'ነ', 'ረ', 'ሰ', 'ከ', 'ቀ', 'ወ', 'ተ', 'ቸ', 'ዘ', 'ደ', 'ጀ', 'አ', 'ፈ', 'ፐ', 'ሐ', 'ዐ', 'ኀ', 'ሸ', 'የ', 'ሠ', 'ኘ', 'ገ', 'ጠ', 'ጨ', 'ጰ', 'ጸ', 'ፀ', 'ዠ', 'ኸ' ]
+    [ 'መ', 'ተ', 'በ', 'ነ', 'ረ', 'ለ', 'የ', 'ወ', 'ሰ', 'አ', 'ከ', 'ደ', 'ገ', 'ሀ', 'ቀ', 'ቸ', 'ፈ', 'ጠ', 'ዘ', 'ጀ', 'ኘ', 'ሸ', 'ጨ', 'ሐ', 'ሠ', 'ዐ', 'ጸ', 'ፀ', 'ፐ', 'ጰ', 'ኀ', 'ዠ', 'ኸ', 'ቨ' ]
+
 
 genForLevel : Int -> Generator String
 genForLevel level =
     let
-        effLevel = clamp 1 33 level
+        effLevel =
+            clamp 1 33 level
 
-        wordsList = 
-            Dict.get effLevel Words.byLesson 
+        wordsList =
+            Dict.get effLevel Words.byLesson
                 |> Maybe.withDefault [ "ሀለበመ" ]
-        
-        safeWords = 
+
+        safeWords =
             if List.isEmpty wordsList then
                 [ "ሀለበመ" ]
+
             else
                 wordsList
-                
-        randWord = 
+
+        randWord =
             case safeWords of
-                [] -> Random.constant "ሀለበመ"
-                (x::xs) -> Random.uniform x xs
+                [] ->
+                    Random.constant "ሀለበመ"
+
+                x :: xs ->
+                    Random.uniform x xs
     in
     randWord
         |> Random.list 8
