@@ -124,7 +124,7 @@ viewTimelineChart data onHover =
         C.chart
             [ CA.height 300
             , CA.width 900
-            , CA.margin { top = 20, bottom = 30, left = 40, right = 40 }
+            , CA.margin { top = 20, bottom = 45, left = 55, right = 40 }
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
@@ -169,7 +169,7 @@ viewMasteryChart letterStats =
         C.chart
             [ CA.height 300
             , CA.width 900
-            , CA.margin { top = 20, bottom = 30, left = 40, right = 20 }
+            , CA.margin { top = 20, bottom = 45, left = 65, right = 20 }
             ]
             [ C.xLabels [ CA.color "var(--chart-text)", CA.format (\i -> 
                 case List.head (List.drop (round i) stats) of
