@@ -1115,25 +1115,25 @@ viewKeyBoard keyboard =
 
         firstRow =
             List.take 14 keyboard.keys
-                |> List.map viewKey
+                |> List.map (viewKey keyboard.modifier)
                 |> viewRow
 
         secondRow =
             List.drop 14 keyboard.keys
                 |> List.take 13
-                |> List.map viewKey
+                |> List.map (viewKey keyboard.modifier)
                 |> viewRow
 
         thirdRow =
             List.drop 27 keyboard.keys
                 |> List.take 12
-                |> List.map viewKey
+                |> List.map (viewKey keyboard.modifier)
                 |> viewRow
 
         fourthRow =
             List.drop 39 keyboard.keys
                 |> List.take 5
-                |> List.map viewKey
+                |> List.map (viewKey keyboard.modifier)
                 |> viewRow
     in
     div [ class "w-full overflow-hidden flex justify-center pb-8 -mb-8" ]
@@ -1298,19 +1298,27 @@ fingerColorClass code =
             "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
 
 
-viewKey : Key -> Html msg
-viewKey key =
+viewKey : KeyModifier -> Key -> Html msg
+viewKey modifier key =
     let
+        isActiveCaps =
+            key.code == "CapsLock" && (modifier == CapsLock || modifier == ShiftCapsLock)
+            
+        isActiveShift =
+            (key.code == "ShiftLeft" || key.code == "ShiftRight") && (modifier == Shift || modifier == ShiftCapsLock)
         bg =
-            case key.state of
-                Pressed ->
-                    "bg-slate-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
+            if isActiveShift && key.state /= Pressed then
+                "bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-t border-l border-r border-slate-400 dark:border-slate-600 " ++ fingerColorClass key.code
+            else
+                case key.state of
+                    Pressed ->
+                        "bg-slate-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
 
-                Released ->
-                    "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ fingerColorClass key.code
+                    Released ->
+                        "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ fingerColorClass key.code
 
-                Hinted ->
-                    "bg-slate-200 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500 shadow-[0_0_12px_rgba(100,116,139,0.3)] animate-pulse"
+                    Hinted ->
+                        "bg-slate-200 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500 shadow-[0_0_12px_rgba(100,116,139,0.3)] animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
@@ -1318,7 +1326,13 @@ viewKey key =
     in
     div
         [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
-        [ text key.view
+        [ if isActiveCaps then
+            div [ class "absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]" ] []
+          else if key.code == "CapsLock" then
+            div [ class "absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-stone-300 dark:bg-stone-600" ] []
+          else
+            text ""
+        , text (if key.code == "CapsLock" then "Caps" else if key.code == "ShiftLeft" || key.code == "ShiftRight" then "Shift" else key.view)
         , case String.split "Key" key.code of
             "" :: "F" :: [] ->
                 span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
