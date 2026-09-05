@@ -128,7 +128,11 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)", CA.format (\i -> "L" ++ String.fromInt (round i)) ]
+            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)", CA.format (\i -> 
+                case List.head (List.drop (round i) history) of
+                    Just s -> "Lesson " ++ String.fromInt s.record.lessonIdx
+                    Nothing -> ""
+                ) ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.series .index
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
@@ -143,7 +147,7 @@ viewTimelineChart data onHover =
                     [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800" ] 
                         [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
-                        , Html.div [] [ Html.text ("Level: " ++ String.fromInt rec.lessonIdx) ]
+                        , Html.div [] [ Html.text ("Lesson: " ++ String.fromInt rec.lessonIdx) ]
                         , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " rec.errors) ]
                         ]
                     ]
