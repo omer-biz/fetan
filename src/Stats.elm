@@ -83,7 +83,7 @@ viewStats data onHover =
             , viewAggregateStats "Statistics for Today" (List.filter (\r -> data.currentTime - r.timestamp < 86400000) data.history)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
-            [ Html.div [ class "flex justify-between items-end mb-4" ]
+            [ Html.div [ class "flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4" ]
                 [ Html.div []
                     [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text "Progress Timeline" ]
                     , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "Speed (WPM) and Accuracy (%) across all your completed lessons." ]
