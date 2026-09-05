@@ -924,7 +924,7 @@ viewDictation dict =
 
                 spaceClass =
                     if isSpace then
-                        " min-w-[0.6em] text-center"
+                        " px-[0.15em] text-center"
 
                     else
                         ""
@@ -951,13 +951,13 @@ viewDictation dict =
                         "text-stone-800 dark:text-stone-200"
 
                 classes =
-                    String.join " " [ "relative inline-block rounded-sm leading-tight py-0.5", spaceClass, colorClass ]
+                    String.join " " [ "relative rounded-sm py-0.5", spaceClass, colorClass ]
 
             in
             ( String.fromInt idx
             , span [ class classes, if isCurrent then Html.Attributes.id "active-letter" else class "" ]
                 [ if isSpace then
-                    text "·"
+                    text "·\u{200B}"
 
                   else
                     text (String.fromChar lt.letter)
