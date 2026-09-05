@@ -43,3 +43,17 @@ body {
     50% { opacity: 0; }
   }
 }
+
+:root {
+  --chart-primary: #334155; /* slate-700 */
+  --chart-secondary: #94a3b8; /* slate-400 */
+  --chart-grid: #f1f5f9; /* slate-100 */
+  --chart-text: #64748b; /* slate-500 */
+}
+
+html.dark {
+  --chart-primary: #cbd5e1; /* slate-300 */
+  --chart-secondary: #475569; /* slate-600 */
+  --chart-grid: #1e293b; /* slate-800 */
+  --chart-text: #94a3b8; /* slate-400 */
+}

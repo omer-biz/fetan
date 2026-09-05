@@ -110,11 +110,11 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (List.length history) ]
-            , C.yLabels [ CA.withGrid ]
+            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)" ]
+            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.series .index
-                [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "rgb(13, 148, 136)" ] []
-                , C.interpolated (\d -> toFloat d.record.accuracy) [ CA.color "rgb(99, 102, 241)", CA.dashed [5, 5] ] []
+                [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
+                , C.interpolated (\d -> toFloat d.record.accuracy) [ CA.color "var(--chart-secondary)", CA.width 2, CA.dashed [6, 6] ] []
                 ]
                 history
             , C.each data.hoveringStats <| \p item ->
@@ -122,9 +122,9 @@ viewTimelineChart data onHover =
                     rec = (CI.getData item).record
                 in
                 [ C.tooltip item [] [] 
-                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700" ] 
-                        [ Html.div [ class "font-bold text-slate-600 dark:text-slate-400" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
-                        , Html.div [ class "font-bold text-indigo-500" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800" ] 
+                        [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
+                        , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
                         , Html.div [] [ Html.text ("Level: " ++ String.fromInt rec.lessonIdx) ]
                         , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " rec.errors) ]
                         ]
@@ -147,14 +147,14 @@ viewMasteryChart letterStats =
             , CA.width 900
             , CA.margin { top = 20, bottom = 30, left = 40, right = 20 }
             ]
-            [ C.xLabels [ CA.format (\i -> 
+            [ C.xLabels [ CA.color "var(--chart-text)", CA.format (\i -> 
                 case List.head (List.drop (round i) stats) of
                     Just s -> s.letter
                     Nothing -> ""
                 ) ]
-            , C.yLabels [ CA.withGrid ]
+            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.bars
-                [ CA.margin 0.1 ]
-                [ C.bar (\x -> x.stat.latencyEma) [ CA.color "rgb(245, 158, 11)" ] ]
+                [ CA.margin 0.2 ]
+                [ C.bar (\x -> x.stat.latencyEma) [ CA.color "var(--chart-primary)" ] ]
                 stats
             ]
