@@ -997,7 +997,7 @@ viewDictation dict =
             ( String.fromInt idx
             , span [ class classes, if isCurrent then Html.Attributes.id "active-letter" else class "" ]
                 [ if isSpace then
-                    text "·\u{200B}"
+                    text " "
 
                   else
                     text (String.fromChar lt.letter)
@@ -1005,7 +1005,7 @@ viewDictation dict =
             )
     in
     Keyed.node "div"
-        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm " ]
+        [ class "whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm " ]
         (List.indexedMap viewLetter allLetters)
 
 
