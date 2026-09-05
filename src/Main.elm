@@ -1475,7 +1475,7 @@ init flags url navKey =
                             m
 
                         Err _ ->
-                            Info initMetric 1 "GeezIME" 0 Dict.empty []
+                            Info initMetric 4 "GeezIME" 0 Dict.empty []
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
@@ -1582,7 +1582,7 @@ infoDecoder : Decode.Decoder Info
 infoDecoder =
     Decode.map6 Info
         (Decode.field "metrics" metricsDecoder)
-        (Decode.field "lessonIdx" Decode.int)
+        (Decode.field "lessonIdx" Decode.int |> Decode.map (\idx -> max 4 idx))
         (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
         (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
         (Decode.maybe (Decode.field "letterStats" statsDictDecoder) |> Decode.map (Maybe.withDefault Dict.empty))
