@@ -247,9 +247,10 @@ viewMasteryChart data onHoverMastery =
                 in
                 [ C.tooltip item [] [] 
                     [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
-                        [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base" ] [ Html.text ("Letter: " ++ rec.letter) ]
+                        [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Letter: " ++ rec.letter) ]
                         , Html.div [ class "font-bold text-amber-600 dark:text-amber-500" ] [ Html.text ("Avg Delay: " ++ String.fromInt (round rec.stat.latencyEma) ++ "ms") ]
-                        , Html.div [] [ Html.text ("Total Typed: " ++ String.fromInt rec.stat.count ++ " times") ]
+                        , Html.div [ class "font-bold text-rose-600 dark:text-rose-500" ] [ Html.text ("Error Rate: " ++ String.fromInt (round (rec.stat.errorEma * 100)) ++ "%") ]
+                        , Html.div [ class "text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text ("Total Typed: " ++ String.fromInt rec.stat.count ++ " times") ]
                         ]
                     ]
                 ]
