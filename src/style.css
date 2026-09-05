@@ -19,3 +19,26 @@ body {
 .caret-animate {
   animation: caretSlide 0.08s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
+
+/* Dark mode View Transition animation */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+}
+
+.transition-to-dark::view-transition-old(root) {
+  z-index: 1;
+}
+.transition-to-dark::view-transition-new(root) {
+  z-index: 9999;
+}
+
+.transition-to-light::view-transition-old(root) {
+  z-index: 9999;
+}
+.transition-to-light::view-transition-new(root) {
+  z-index: 1;
+}
