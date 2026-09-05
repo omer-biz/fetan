@@ -20,6 +20,20 @@ body {
   mix-blend-mode: normal;
 }
 
+::view-transition-old(root) {
+  z-index: 2;
+}
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+.dark::view-transition-old(root) {
+  z-index: 1;
+}
+.dark::view-transition-new(root) {
+  z-index: 2;
+}
+
 
 @theme {
   --animate-blink: blink 1s step-end infinite;

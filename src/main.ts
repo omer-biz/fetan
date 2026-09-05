@@ -78,8 +78,8 @@ import { get, set } from 'idb-keyval';
                     {
                         duration: 500,
                         easing: "ease-in-out",
-                        // Always animate the NEW snapshot expanding to avoid reverse/z-index issues
-                        pseudoElement: "::view-transition-new(root)",
+                        pseudoElement: isDark ? "::view-transition-new(root)" : "::view-transition-old(root)",
+                        fill: 'forwards',
                     }
                 );
             });
