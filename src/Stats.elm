@@ -58,20 +58,23 @@ viewAggregateStats title history =
             else
                 str ++ ".0"
 
-        statRow label val =
-            Html.div [ class "flex justify-between items-center text-sm" ]
-                [ Html.span [ class "text-stone-500 dark:text-stone-400 font-medium" ] [ Html.text label ]
-                , Html.span [ class "text-stone-800 dark:text-stone-200 font-bold" ] [ Html.text val ]
+        statCard label val sub =
+            Html.div [ class "flex flex-col bg-slate-50 dark:bg-[#202020] rounded-lg p-4 border border-slate-100 dark:border-stone-700/50" ]
+                [ Html.span [ class "text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase mb-1" ] [ Html.text label ]
+                , Html.div [ class "flex items-baseline gap-2 mt-1" ]
+                    [ Html.span [ class "text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100" ] [ Html.text val ]
+                    , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-500" ] [ Html.text sub ]
+                    ]
                 ]
     in
-    Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-3" ]
-        [ Html.h2 [ class "text-lg font-bold text-stone-700 dark:text-stone-300 mb-2 border-b border-stone-200 dark:border-stone-700 pb-2" ] [ Html.text title ]
-        , statRow "Time:" timeStr
-        , statRow "Lessons:" (String.fromInt totalLessons)
-        , statRow "Top speed:" (String.fromInt topSpeed ++ "wpm")
-        , statRow "Average speed:" (formatFloat avgSpeed ++ "wpm")
-        , statRow "Top accuracy:" (String.fromInt topAccuracy ++ "%")
-        , statRow "Average accuracy:" (formatFloat avgAccuracy ++ "%")
+    Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-4" ]
+        [ Html.h2 [ class "text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100 mb-2" ] [ Html.text title ]
+        , Html.div [ class "grid grid-cols-2 gap-4" ]
+            [ statCard "Time" timeStr ""
+            , statCard "Sessions" (String.fromInt totalLessons) ""
+            , statCard "Top Speed" (String.fromInt topSpeed) ("avg " ++ formatFloat avgSpeed ++ " wpm")
+            , statCard "Accuracy" (String.fromInt topAccuracy ++ "%") ("avg " ++ formatFloat avgAccuracy ++ "%")
+            ]
         ]
 
 viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar) -> msg) -> Html msg
