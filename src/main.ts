@@ -1,31 +1,48 @@
 import "./style.css";
 import { Elm } from "./Main.elm";
 
-let lessonInfo = localStorage.getItem('lessonInfo');
-let flagsInfo = lessonInfo ? JSON.parse(lessonInfo) : null;
+import { get, set } from 'idb-keyval';
 
-const savedTheme = localStorage.getItem('theme') || 'dark';
-if (savedTheme === 'dark') {
-    document.documentElement.classList.add('dark');
-} else {
-    document.documentElement.classList.remove('dark');
-}
+(async function initApp() {
+    // Migrate legacy localStorage data to IndexedDB
+    const legacyLesson = localStorage.getItem('lessonInfo');
+    if (legacyLesson) {
+        const parsed = JSON.parse(legacyLesson);
+        await set('lessonInfo', parsed);
+        localStorage.removeItem('lessonInfo');
+    }
+    
+    const legacyTheme = localStorage.getItem('theme');
+    if (legacyTheme) {
+        await set('theme', legacyTheme);
+        localStorage.removeItem('theme');
+    }
 
-const app = Elm.Main.init({
-  node: document.getElementById("app"),
-  flags: {
-      lessonInfo: flagsInfo,
-      theme: savedTheme
-  },
-});
+    // Load from IndexedDB
+    let flagsInfo = await get('lessonInfo') || null;
+    let savedTheme = await get('theme') || 'dark';
 
-app.ports.saveInfo.subscribe(function (state: any) {
-  localStorage.setItem('lessonInfo', JSON.stringify(state));
-});
+    if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
 
-if (app.ports.saveTheme) {
-    app.ports.saveTheme.subscribe(async function (theme: string) {
-        localStorage.setItem('theme', theme);
+    const app = Elm.Main.init({
+      node: document.getElementById("app"),
+      flags: {
+          lessonInfo: flagsInfo,
+          theme: savedTheme
+      },
+    });
+
+    app.ports.saveInfo.subscribe(async function (state: any) {
+      await set('lessonInfo', state);
+    });
+
+    if (app.ports.saveTheme) {
+        app.ports.saveTheme.subscribe(async function (theme: string) {
+            await set('theme', theme);
         const isDark = theme === 'dark';
 
         if (!document.startViewTransition) {
@@ -70,6 +87,8 @@ if (app.ports.saveTheme) {
         });
     });
 }
+
+})();
 
 // Smooth animated caret
 let caretElement: HTMLElement | null = null;
