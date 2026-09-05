@@ -48,12 +48,21 @@ type alias LetterStat =
     }
 
 
+type alias SessionRecord =
+    { timestamp : Float
+    , wpm : Int
+    , accuracy : Int
+    , lessonIdx : Int
+    , errors : List String
+    }
+
 type alias Info =
     { metrics : Metrics
     , lessonIdx : Int
     , layoutKind : String
     , dictationsCompleted : Int
     , letterStats : Dict.Dict String LetterStat
+    , history : List SessionRecord
     }
 
 
@@ -1331,7 +1340,7 @@ init flags =
                             m
 
                         Err _ ->
-                            Info initMetric 1 "GeezIME" 0 Dict.empty
+                            Info initMetric 1 "GeezIME" 0 Dict.empty []
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
@@ -1411,14 +1420,24 @@ statsDictDecoder =
     Decode.dict letterStatDecoder
 
 
+sessionRecordDecoder : Decode.Decoder SessionRecord
+sessionRecordDecoder =
+    Decode.map5 SessionRecord
+        (Decode.field "timestamp" Decode.float)
+        (Decode.field "wpm" Decode.int)
+        (Decode.field "accuracy" Decode.int)
+        (Decode.field "lessonIdx" Decode.int)
+        (Decode.field "errors" (Decode.list Decode.string))
+
 infoDecoder : Decode.Decoder Info
 infoDecoder =
-    Decode.map5 Info
+    Decode.map6 Info
         (Decode.field "metrics" metricsDecoder)
         (Decode.field "lessonIdx" Decode.int)
         (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
         (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
         (Decode.maybe (Decode.field "letterStats" statsDictDecoder) |> Decode.map (Maybe.withDefault Dict.empty))
+        (Decode.maybe (Decode.field "history" (Decode.list sessionRecordDecoder)) |> Decode.map (Maybe.withDefault []))
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -1444,6 +1463,16 @@ encodeLetterStat stat =
         ]
 
 
+encodeSessionRecord : SessionRecord -> Encode.Value
+encodeSessionRecord record =
+    Encode.object
+        [ ( "timestamp", Encode.float record.timestamp )
+        , ( "wpm", Encode.int record.wpm )
+        , ( "accuracy", Encode.int record.accuracy )
+        , ( "lessonIdx", Encode.int record.lessonIdx )
+        , ( "errors", Encode.list Encode.string record.errors )
+        ]
+
 encodeInfo : Info -> Encode.Value
 encodeInfo info =
     Encode.object
@@ -1452,8 +1481,8 @@ encodeInfo info =
         , ( "layoutKind", Encode.string info.layoutKind )
         , ( "dictationsCompleted", Encode.int info.dictationsCompleted )
         , ( "letterStats", Encode.dict identity encodeLetterStat info.letterStats )
+        , ( "history", Encode.list encodeSessionRecord info.history )
         ]
-
 
 initMetric : Metrics
 initMetric =
