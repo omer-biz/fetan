@@ -94,9 +94,71 @@ update keybrState codePoint currentLetter model =
         ( model, Wrong )
 
 
+findKeyForChar : Char -> Maybe ( KeyModifier, String )
+findKeyForChar c =
+    let
+        findIn dict mod =
+            Dict.toList dict
+                |> List.filter (\( _, v ) -> v == c)
+                |> List.head
+                |> Maybe.map (\( k, _ ) -> ( mod, k ))
+    in
+    findIn plainKeys NoModifier
+        |> orElse (findIn shiftKeys Shift)
+        |> orElse (findIn capsKeys CapsLock)
+        |> orElse (findIn shiftCaps ShiftCapsLock)
+
+
+orElse : Maybe a -> Maybe a -> Maybe a
+orElse fallback maybe =
+    case maybe of
+        Just val ->
+            Just val
+
+        Nothing ->
+            fallback
+
+
+normalizeLetter : Char -> ( Char, Maybe Char )
+normalizeLetter letter =
+    let
+        cl =
+            Char.toCode letter
+
+        vowelOffset =
+            modBy 0x08 <| modBy 0x10 cl
+
+        vowelPart =
+            if vowelOffset > 0 && vowelOffset < 8 then
+                Just <| Char.fromCode (0x12A0 + vowelOffset)
+
+            else
+                Nothing
+
+        baseCode =
+            if modBy 0x10 cl >= 8 then
+                ((cl // 0x10) * 0x10) + 8
+
+            else
+                (cl // 0x10) * 0x10
+    in
+    ( Char.fromCode baseCode, vowelPart )
+
+
 hint : Char -> Model -> Maybe ( KeyModifier, String )
-hint _ _ =
-    Nothing
+hint input model =
+    let
+        ( baseChar, vowelPart ) =
+            normalizeLetter input
+    in
+    if vowelPart == Nothing then
+        findKeyForChar baseChar
+
+    else if model.partial /= Nothing then
+        findKeyForChar (Maybe.withDefault '\u{0000}' vowelPart)
+
+    else
+        findKeyForChar baseChar
 
 
 helper : KeyModifier -> String -> Char
