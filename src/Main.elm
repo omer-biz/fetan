@@ -546,13 +546,14 @@ viewThemeToggle theme =
     in
     Html.button
         [ Html.Events.onClick ToggleTheme
+        , Html.Attributes.id "theme-toggle"
         , class "absolute top-6 right-6 text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity"
         ]
         [ icon ]
 
 view : Model -> Html Msg
 view model =
-    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center justify-center min-h-screen transition-colors duration-300 relative px-4 sm:px-8 py-12" ]
+    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center justify-center min-h-screen relative px-4 sm:px-8 py-12" ]
         [ viewThemeToggle model.theme
         , div [ class "w-full max-w-[800px] flex flex-col items-center" ]
             [ viewInfo model.info
@@ -761,7 +762,7 @@ viewDictation dict =
                         "text-stone-800 dark:text-stone-200"
 
                 classes =
-                    String.join " " [ "relative inline-block rounded-sm transition-colors duration-200", spaceClass, colorClass ]
+                    String.join " " [ "relative inline-block rounded-sm ", spaceClass, colorClass ]
 
                 caret =
                     if isCurrent then
@@ -782,7 +783,7 @@ viewDictation dict =
             )
     in
     Keyed.node "div"
-        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm transition-colors duration-300" ]
+        [ class "mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm " ]
         (List.indexedMap viewLetter allLetters)
 
 
@@ -924,7 +925,7 @@ viewKey key =
                     "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ (fingerColorClass key.code)
 
                 Hinted ->
-                    "transition-colors duration-300 bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse" 
+                    "bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse" 
 
         extraStyle =
             Dict.get key.code specialKeys
