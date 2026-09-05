@@ -99,12 +99,12 @@ function updateCaret() {
     if (active) {
         if (!caretElement) {
             caretElement = document.createElement('div');
-            caretElement.className = 'absolute top-0 left-0 bg-teal-500/20 dark:bg-teal-500/30 rounded-sm pointer-events-none z-0';
+            caretElement.className = 'absolute top-0 left-0 bg-slate-500/10 dark:bg-slate-400/20 rounded-sm pointer-events-none z-0';
             caretElement.style.transition = 'transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out';
             caretElement.style.transformOrigin = 'top left';
             
             caretBorder = document.createElement('div');
-            caretBorder.className = 'absolute -left-[1px] top-[10%] h-[80%] w-[3px] bg-teal-500 animate-blink rounded-full shadow-[0_0_4px_rgba(20,184,166,0.6)]';
+            caretBorder.className = 'absolute -left-[1px] top-[10%] h-[80%] w-[3px] bg-slate-500 dark:bg-slate-400 animate-blink rounded-full shadow-[0_0_3px_rgba(100,116,139,0.5)]';
             
             caretElement.appendChild(caretBorder);
             document.body.appendChild(caretElement);

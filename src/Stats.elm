@@ -62,7 +62,7 @@ viewAggregateStats title history =
                 , Html.span [ class "text-stone-800 dark:text-stone-200 font-bold" ] [ Html.text val ]
                 ]
     in
-    Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-3" ]
+    Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-3" ]
         [ Html.h2 [ class "text-lg font-bold text-stone-700 dark:text-stone-300 mb-2 border-b border-stone-200 dark:border-stone-700 pb-2" ] [ Html.text title ]
         , statRow "Time:" timeStr
         , statRow "Lessons:" (String.fromInt totalLessons)
@@ -82,12 +82,12 @@ viewStats data onHover =
             [ viewAggregateStats "All Time Statistics" data.history
             , viewAggregateStats "Statistics for Today" (List.filter (\r -> data.currentTime - r.timestamp < 86400000) data.history)
             ]
-        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
+        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ Html.text "Speed & Accuracy Timeline" ]
             , Html.div [ class "flex-1 w-full" ]
                 [ viewTimelineChart data onHover ]
             ]
-        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
+        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ Html.text "Letter Latency (Mastery)" ]
             , Html.div [ class "flex-1 w-full" ]
                 [ viewMasteryChart data.letterStats ]
@@ -123,7 +123,7 @@ viewTimelineChart data onHover =
                 in
                 [ C.tooltip item [] [] 
                     [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700" ] 
-                        [ Html.div [ class "font-bold text-teal-600" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
+                        [ Html.div [ class "font-bold text-slate-600 dark:text-slate-400" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-indigo-500" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
                         , Html.div [] [ Html.text ("Level: " ++ String.fromInt rec.lessonIdx) ]
                         , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " rec.errors) ]

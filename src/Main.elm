@@ -782,7 +782,7 @@ viewHeader : Model -> Html Msg
 viewHeader model =
     Html.header [ class "relative z-10 w-full flex justify-between items-center mb-8" ]
         [ div [ class "flex items-center" ]
-            [ span [ class "text-2xl font-bold tracking-widest text-teal-600 dark:text-teal-400" ] [ text "ፈጠን" ]
+            [ span [ class "text-xl font-medium tracking-[0.2em] text-slate-700 dark:text-slate-300 lowercase" ] [ text "qelm" ]
             ]
         , div [ class "flex items-center gap-4 md:gap-6" ]
             [ viewLayoutSelector model.layoutKind
@@ -807,7 +807,7 @@ viewHeader model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "ፈጠን (Fetan)"
+    { title = "qelm"
     , body = 
         [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
@@ -824,9 +824,9 @@ view model =
             , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
                 [ text "an open-source project | made by "
                 , a
-                    [ href "https://github.com/omer-biz/fetan"
+                    [ href "https://github.com/omer-biz/qelm"
                     , target "_blank"
-                    , class "font-medium hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                    , class "font-medium hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
                     ]
                     [ text "omer" ]
                 ]
@@ -893,7 +893,7 @@ viewLayoutSelector currentKind =
         , select
             [ onInput (layoutKindFromString >> SelectLayout)
             , class
-                "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm border border-stone-300 dark:border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500 hover:bg-stone-200 dark:hover:bg-stone-700 transition"
+                "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm border border-stone-300 dark:border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-500 hover:bg-stone-200 dark:hover:bg-stone-700 transition"
             ]
             [ option
                 [ value "SilPowerG"
@@ -959,9 +959,9 @@ viewProgression idx =
                         if letterIdx < effIdx then
                             "text-stone-800 dark:text-stone-200 font-medium"
                         else if letterIdx == effIdx then
-                            "text-teal-600 dark:text-teal-400 font-bold border-b-2 border-teal-500/50 pb-0.5"
+                            "text-slate-600 dark:text-slate-400 font-bold border-b-2 border-slate-500/50 pb-0.5"
                         else
-                            "text-stone-400 dark:text-stone-500 font-normal opacity-80"
+                            "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
                 span [ class ("transition-colors duration-300 " ++ stateClasses) ]
                     [ text (String.fromChar c) ]
@@ -1002,11 +1002,11 @@ viewMetrics info =
             String.fromInt (round (conf * 100))
 
         viewMetric label m pst =
-            div [ class "flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-xl shadow-sm border border-stone-200 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
+            div [ class "flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.03)] dark:shadow-none border border-stone-200/80 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
                 [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold text-center" ] [ text label ]
                 , div [ class "flex items-baseline gap-1" ]
                     [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text m ]
-                    , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500" ] [ text pst ]
+                    , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500 tracking-wide" ] [ text pst ]
                     ]
                 ]
     in
@@ -1059,7 +1059,7 @@ viewDictation dict =
                             "bg-amber-500/20 dark:bg-amber-500/30 text-amber-600 dark:text-amber-400"
 
                         else
-                            "text-teal-600 dark:text-teal-400 relative z-10"
+                            "text-slate-600 dark:text-slate-400 relative z-10"
 
                     else if idx < currentIndex then
                         if lt.wasWrong then
@@ -1086,7 +1086,7 @@ viewDictation dict =
             )
     in
     Keyed.node "div"
-        [ class "whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-2xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-sm " ]
+        [ class "whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none " ]
         (List.indexedMap viewLetter allLetters)
 
 
@@ -1304,20 +1304,20 @@ viewKey key =
         bg =
             case key.state of
                 Pressed ->
-                    "bg-teal-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
+                    "bg-slate-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
 
                 Released ->
                     "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ fingerColorClass key.code
 
                 Hinted ->
-                    "bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse"
+                    "bg-slate-200 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 border-2 border-slate-400 dark:border-slate-500 shadow-[0_0_12px_rgba(100,116,139,0.3)] animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
                 |> Maybe.withDefault ""
     in
     div
-        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-lg shadow-sm font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
+        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
         [ text key.view
         , case String.split "Key" key.code of
             "" :: "F" :: [] ->
