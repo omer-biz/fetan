@@ -88,6 +88,39 @@ import { get, set } from 'idb-keyval';
     });
 }
 
+
+    const FIREBASE_PROJECT_ID = ""; // e.g., "qelm-stats-12345"
+
+    if (app.ports && app.ports.trackEvent) {
+      app.ports.trackEvent.subscribe(async (payload: any) => {
+        if (!FIREBASE_PROJECT_ID) {
+          console.log("[Analytics] Firebase Project ID not set. Payload:", payload);
+          return;
+        }
+
+        const firestoreEndpoint = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/sessions`;
+        
+        try {
+          await fetch(firestoreEndpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fields: {
+                wpm: { integerValue: Math.round(payload.wpm) },
+                accuracy: { integerValue: Math.round(payload.accuracy) },
+                duration: { doubleValue: payload.duration },
+                lessonIdx: { integerValue: payload.lessonIdx },
+                slowestLetter: { stringValue: payload.slowestLetter },
+                timestamp: { timestampValue: new Date().toISOString() }
+              }
+            })
+          });
+          console.log("[Analytics] Successfully logged anonymous session to Firestore.");
+        } catch (e) {
+          console.error("[Analytics] Failed to log session:", e);
+        }
+      });
+    }
 })();
 
 // Smooth animated caret
@@ -124,3 +157,4 @@ function updateCaret() {
     requestAnimationFrame(updateCaret);
 }
 requestAnimationFrame(updateCaret);
+

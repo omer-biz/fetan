@@ -432,7 +432,28 @@ update msg model =
                 Cmd.none
 
               else
-                saveInfo <| encodeInfo { info | metrics = newMetrics }
+                let
+                    slowestLetter = 
+                        Dict.toList info.letterStats
+                            |> List.filter (\(_, s) -> s.count > 0)
+                            |> List.sortBy (\(_, s) -> -s.latencyEma)
+                            |> List.head
+                            |> Maybe.map Tuple.first
+                            |> Maybe.withDefault "N/A"
+                    
+                    payload =
+                        Encode.object
+                            [ ( "wpm", Encode.int newMetrics.speed.new )
+                            , ( "accuracy", Encode.int newMetrics.accuracy.new )
+                            , ( "duration", Encode.float model.time )
+                            , ( "lessonIdx", Encode.int info.lessonIdx )
+                            , ( "slowestLetter", Encode.string slowestLetter )
+                            ]
+                in
+                Cmd.batch 
+                    [ saveInfo <| encodeInfo { info | metrics = newMetrics }
+                    , trackEvent payload
+                    ]
             )
 
         Tick posix ->
@@ -1656,3 +1677,4 @@ main =
 
 
 port saveTheme : String -> Cmd msg
+port trackEvent : Encode.Value -> Cmd msg
