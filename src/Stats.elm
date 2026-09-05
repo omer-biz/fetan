@@ -4,6 +4,7 @@ import Html exposing (Html)
 import Html.Attributes exposing (class)
 import Dict exposing (Dict)
 import Time
+import Set
 import Chart as C
 import Chart.Attributes as CA
 import Chart.Events as CE
@@ -173,7 +174,7 @@ viewTimelineChart data onHover =
                         [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
                         , Html.div [] [ Html.text ("Lesson: " ++ String.fromInt rec.lessonIdx) ]
-                        , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " rec.errors) ]
+                        , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " (Set.toList (Set.fromList rec.errors))) ]
                         ]
                     ]
                 ]
