@@ -37,6 +37,7 @@ type alias Model =
     , dictation : Dictation
     , info : Info
     , time : Float
+    , currentTime : Float
     , lastSuccessTime : Float
     , lastKeyEvent : Float
     , currentLayout : Layout
@@ -364,14 +365,9 @@ update msg model =
                     | lessonIdx = updates.nextLessonIdx
                     , dictationsCompleted = updates.nextCompleted
                     , letterStats = updates.nextStats 
-                    , history = 
-                        if dict.current == Nothing then
-                            info.history ++ [ { timestamp = model.time, wpm = info.metrics.speed.new, accuracy = info.metrics.accuracy.new, lessonIdx = info.lessonIdx, errors = newErrors } ]
-                        else
-                            info.history
                     }
                 , lastSuccessTime = updates.newLastSuccessTime
-                , currentErrors = if dict.current == Nothing then [] else newErrors
+                , currentErrors = newErrors
               }
             , if dict.current == Nothing then
                 DictGen.genForLevel updates.nextLessonIdx
@@ -419,7 +415,16 @@ update msg model =
                 , time = 0
                 , lastKeyEvent = 0
                 , started = False
-                , info = { info | metrics = newMetrics }
+                , currentErrors = []
+                , info = 
+                    { info 
+                    | metrics = newMetrics
+                    , history = 
+                        if model.time /= 0 then
+                            info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = info.lessonIdx, errors = model.currentErrors } ]
+                        else
+                            info.history
+                    }
               }
             , if model.time == 0 then
                 Cmd.none
@@ -428,8 +433,9 @@ update msg model =
                 saveInfo <| encodeInfo { info | metrics = newMetrics }
             )
 
-        Tick _ ->
+        Tick posix ->
             let
+                nowMillis = toFloat (Time.posixToMillis posix)
                 hints =
                     case dictation.current of
                         Just curr ->
@@ -456,6 +462,7 @@ update msg model =
 
                     else
                         0
+                , currentTime = nowMillis
                 , lastKeyEvent = model.lastKeyEvent + 1
                 , keyboard = { keyboard | keys = keys }
               }
@@ -806,7 +813,7 @@ view model =
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
-                    Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats } OnHoverStats
+                    Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, currentTime = model.currentTime } OnHoverStats
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info
@@ -1474,6 +1481,13 @@ init flags url navKey =
         keyboard =
             Keyboard False NoModifier withModKeys
 
+        nowTime =
+            case Decode.decodeValue (Decode.field "now" Decode.float) flags of
+                Ok t ->
+                    t
+                Err _ ->
+                    0
+
         themeStr =
             case Decode.decodeValue (Decode.field "theme" Decode.string) flags of
                 Ok "light" ->
@@ -1487,6 +1501,7 @@ init flags url navKey =
             , dictation = stringToDictation ""
             , info = info
             , time = 0
+            , currentTime = nowTime
             , lastSuccessTime = 0
             , lastKeyEvent = 0
             , currentLayout = curLayout
@@ -1535,12 +1550,13 @@ statsDictDecoder =
 
 sessionRecordDecoder : Decode.Decoder SessionRecord
 sessionRecordDecoder =
-    Decode.map5 SessionRecord
+    Decode.map6 SessionRecord
         (Decode.field "timestamp" Decode.float)
         (Decode.field "wpm" Decode.int)
         (Decode.field "accuracy" Decode.int)
         (Decode.field "lessonIdx" Decode.int)
         (Decode.field "errors" (Decode.list Decode.string))
+        (Decode.maybe (Decode.field "duration" Decode.float) |> Decode.map (Maybe.withDefault 0.0))
 
 infoDecoder : Decode.Decoder Info
 infoDecoder =
@@ -1584,6 +1600,7 @@ encodeSessionRecord record =
         , ( "accuracy", Encode.int record.accuracy )
         , ( "lessonIdx", Encode.int record.lessonIdx )
         , ( "errors", Encode.list Encode.string record.errors )
+        , ( "duration", Encode.float record.duration )
         ]
 
 encodeInfo : Info -> Encode.Value

@@ -14,6 +14,7 @@ type alias SessionRecord =
     , accuracy : Int
     , lessonIdx : Int
     , errors : List String
+    , duration : Float
     }
 
 type alias LetterStat =
@@ -26,13 +27,60 @@ type alias StatsData =
     { history : List SessionRecord
     , letterStats : Dict String LetterStat
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
+    , currentTime : Float
     }
+
+viewAggregateStats : String -> List SessionRecord -> Html msg
+viewAggregateStats title history =
+    let
+        totalDuration = List.map .duration history |> List.sum
+        totalLessons = List.length history
+        topSpeed = List.map .wpm history |> List.maximum |> Maybe.withDefault 0
+        avgSpeed = if totalLessons == 0 then 0 else (List.map .wpm history |> List.sum |> toFloat) / toFloat totalLessons
+        topAccuracy = List.map .accuracy history |> List.maximum |> Maybe.withDefault 0
+        avgAccuracy = if totalLessons == 0 then 0 else (List.map .accuracy history |> List.sum |> toFloat) / toFloat totalLessons
+
+        -- format time (e.g. 00:15:25)
+        h = floor (totalDuration / 3600)
+        m = floor (totalDuration / 60) |> modBy 60
+        s = floor totalDuration |> modBy 60
+        pad n = if n < 10 then "0" ++ String.fromInt n else String.fromInt n
+        timeStr = pad h ++ ":" ++ pad m ++ ":" ++ pad s
+
+        formatFloat f =
+            let
+                str = String.fromFloat (toFloat (round (f * 10)) / 10)
+            in
+            if String.contains "." str then
+                str
+            else
+                str ++ ".0"
+
+        statRow label val =
+            Html.div [ class "flex justify-between items-center text-sm" ]
+                [ Html.span [ class "text-stone-500 dark:text-stone-400 font-medium" ] [ Html.text label ]
+                , Html.span [ class "text-stone-800 dark:text-stone-200 font-bold" ] [ Html.text val ]
+                ]
+    in
+    Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-3" ]
+        [ Html.h2 [ class "text-lg font-bold text-stone-700 dark:text-stone-300 mb-2 border-b border-stone-200 dark:border-stone-700 pb-2" ] [ Html.text title ]
+        , statRow "Time:" timeStr
+        , statRow "Lessons:" (String.fromInt totalLessons)
+        , statRow "Top speed:" (String.fromInt topSpeed ++ "wpm")
+        , statRow "Average speed:" (formatFloat avgSpeed ++ "wpm")
+        , statRow "Top accuracy:" (String.fromInt topAccuracy ++ "%")
+        , statRow "Average accuracy:" (formatFloat avgAccuracy ++ "%")
+        ]
 
 viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> Html msg
 viewStats data onHover =
     Html.div [ class "w-full max-w-[1000px] flex flex-col flex-1 mt-8 gap-8 pb-16" ]
         [ Html.div [ class "flex items-center justify-between" ]
             [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ Html.text "Performance Stats" ]
+            ]
+        , Html.div [ class "flex flex-col md:flex-row gap-8 w-full" ]
+            [ viewAggregateStats "All Time Statistics" data.history
+            , viewAggregateStats "Statistics for Today" (List.filter (\r -> data.currentTime - r.timestamp < 86400000) data.history)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ Html.text "Speed & Accuracy Timeline" ]
