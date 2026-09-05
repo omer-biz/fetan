@@ -83,12 +83,30 @@ viewStats data onHover =
             , viewAggregateStats "Statistics for Today" (List.filter (\r -> data.currentTime - r.timestamp < 86400000) data.history)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
-            [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ Html.text "Speed & Accuracy Timeline" ]
+            [ Html.div [ class "flex justify-between items-end mb-4" ]
+                [ Html.div []
+                    [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text "Progress Timeline" ]
+                    , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "Speed (WPM) and Accuracy (%) across all your completed lessons." ]
+                    ]
+                , Html.div [ class "flex gap-4 text-sm font-medium" ]
+                    [ Html.div [ class "flex items-center gap-2" ]
+                        [ Html.div [ class "w-3 h-3 rounded-full bg-slate-700 dark:bg-slate-300" ] []
+                        , Html.span [ class "text-stone-600 dark:text-stone-300" ] [ Html.text "WPM" ]
+                        ]
+                    , Html.div [ class "flex items-center gap-2" ]
+                        [ Html.div [ class "w-3 h-0.5 border-t-2 border-dashed border-slate-400 dark:border-slate-600" ] []
+                        , Html.span [ class "text-stone-600 dark:text-stone-300" ] [ Html.text "Accuracy %" ]
+                        ]
+                    ]
+                ]
             , Html.div [ class "flex-1 w-full" ]
                 [ viewTimelineChart data onHover ]
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
-            [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ Html.text "Letter Latency (Mastery)" ]
+            [ Html.div [ class "mb-4" ]
+                [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text "Slowest Characters" ]
+                , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "The average delay (in milliseconds) before you successfully type these characters. Taller bars indicate you are struggling to find them quickly." ]
+                ]
             , Html.div [ class "flex-1 w-full" ]
                 [ viewMasteryChart data.letterStats ]
             ]
@@ -110,7 +128,7 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)" ]
+            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)", CA.format (\i -> "L" ++ String.fromInt (round i)) ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.series .index
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
@@ -135,8 +153,14 @@ viewTimelineChart data onHover =
 viewMasteryChart : Dict String LetterStat -> Html msg
 viewMasteryChart letterStats =
     let
-        stats =
+        sortedStats =
             Dict.toList letterStats
+                |> List.filter (\(_, stat) -> stat.count > 0)
+                |> List.sortBy (\(_, stat) -> -stat.latencyEma)
+                |> List.take 15
+
+        stats =
+            sortedStats
                 |> List.indexedMap (\i (letter, stat) -> { index = toFloat i, letter = letter, stat = stat })
     in
     if List.isEmpty stats then
@@ -152,7 +176,7 @@ viewMasteryChart letterStats =
                     Just s -> s.letter
                     Nothing -> ""
                 ) ]
-            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
+            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)", CA.format (\y -> String.fromInt (round y) ++ "ms") ]
             , C.bars
                 [ CA.margin 0.2 ]
                 [ C.bar (\x -> x.stat.latencyEma) [ CA.color "var(--chart-primary)" ] ]
