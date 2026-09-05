@@ -73,7 +73,7 @@ import { get, set } from 'idb-keyval';
                 
                 document.documentElement.animate(
                     {
-                        clipPath: clipPath,
+                        clipPath: isDark ? clipPath : [...clipPath].reverse(),
                     },
                     {
                         duration: 500,

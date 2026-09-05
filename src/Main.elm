@@ -802,7 +802,7 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "ፈጠን (Fetan)"
     , body = 
-        [ main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6" ]
+        [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
