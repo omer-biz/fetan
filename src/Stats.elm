@@ -27,6 +27,7 @@ type alias StatsData =
     { history : List SessionRecord
     , letterStats : Dict String LetterStat
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
+    , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     , currentTime : Float
     }
 
@@ -72,8 +73,8 @@ viewAggregateStats title history =
         , statRow "Average accuracy:" (formatFloat avgAccuracy ++ "%")
         ]
 
-viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> Html msg
-viewStats data onHover =
+viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar) -> msg) -> Html msg
+viewStats data onHover onHoverMastery =
     Html.div [ class "w-full max-w-[1000px] flex flex-col flex-1 mt-8 gap-8 pb-16" ]
         [ Html.div [ class "flex items-center justify-between" ]
             [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ Html.text "Performance Stats" ]
@@ -108,7 +109,7 @@ viewStats data onHover =
                 , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "The average delay (in milliseconds) before you successfully type these characters. Taller bars indicate you are struggling to find them quickly." ]
                 ]
             , Html.div [ class "flex-1 w-full" ]
-                [ viewMasteryChart data.letterStats ]
+                [ viewMasteryChart data onHoverMastery ]
             ]
         ]
 
@@ -154,11 +155,11 @@ viewTimelineChart data onHover =
                 ]
             ]
 
-viewMasteryChart : Dict String LetterStat -> Html msg
-viewMasteryChart letterStats =
+viewMasteryChart : StatsData -> (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar) -> msg) -> Html msg
+viewMasteryChart data onHoverMastery =
     let
         sortedStats =
-            Dict.toList letterStats
+            Dict.toList data.letterStats
                 |> List.filter (\(_, stat) -> stat.count > 0)
                 |> List.sortBy (\(_, stat) -> -stat.latencyEma)
                 |> List.take 15
@@ -174,6 +175,8 @@ viewMasteryChart letterStats =
             [ CA.height 300
             , CA.width 900
             , CA.margin { top = 20, bottom = 45, left = 65, right = 20 }
+            , CE.onMouseMove onHoverMastery (CE.getNearest CI.bars)
+            , CE.onMouseLeave (onHoverMastery [])
             ]
             [ C.xLabels [ CA.color "var(--chart-text)", CA.format (\i -> 
                 case List.head (List.drop (round i) stats) of
@@ -185,4 +188,16 @@ viewMasteryChart letterStats =
                 [ CA.margin 0.2 ]
                 [ C.bar (\x -> x.stat.latencyEma) [ CA.color "var(--chart-primary)" ] ]
                 stats
+            , C.each data.hoveringMastery <| \p item ->
+                let
+                    rec = (CI.getData item)
+                in
+                [ C.tooltip item [] [] 
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                        [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base" ] [ Html.text ("Letter: " ++ rec.letter) ]
+                        , Html.div [ class "font-bold text-amber-600 dark:text-amber-500" ] [ Html.text ("Avg Delay: " ++ String.fromInt (round rec.stat.latencyEma) ++ "ms") ]
+                        , Html.div [] [ Html.text ("Total Typed: " ++ String.fromInt rec.stat.count ++ " times") ]
+                        ]
+                    ]
+                ]
             ]

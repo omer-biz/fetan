@@ -48,6 +48,7 @@ type alias Model =
     , navKey : Nav.Key
     , route : Route
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
+    , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     }
 
 
@@ -150,6 +151,7 @@ type Msg
     | UrlChanged Url
     | GoTo Route
     | OnHoverStats (List (CI.One { index : Float, record : SessionRecord } CI.Dot))
+    | OnHoverMastery (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar))
 
 
 port saveInfo : Encode.Value -> Cmd msg
@@ -595,6 +597,9 @@ update msg model =
         OnHoverStats items ->
             ( { model | hoveringStats = items }, Cmd.none )
 
+        OnHoverMastery items ->
+            ( { model | hoveringMastery = items }, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
 
@@ -813,7 +818,7 @@ view model =
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
-                    Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, currentTime = model.currentTime } OnHoverStats
+                    Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime } OnHoverStats OnHoverMastery
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info
@@ -1526,6 +1531,7 @@ init flags url navKey =
             , navKey = navKey
             , route = routeFromUrl url
             , hoveringStats = []
+            , hoveringMastery = []
             }
 
         dictation =
