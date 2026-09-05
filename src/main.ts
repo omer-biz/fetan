@@ -70,3 +70,38 @@ if (app.ports.saveTheme) {
         });
     });
 }
+
+// Smooth animated caret
+let caretElement: HTMLElement | null = null;
+let caretBorder: HTMLElement | null = null;
+
+function updateCaret() {
+    const active = document.getElementById('active-letter');
+    if (active) {
+        if (!caretElement) {
+            caretElement = document.createElement('div');
+            caretElement.className = 'absolute bg-teal-500/20 dark:bg-teal-500/30 rounded-sm pointer-events-none z-0';
+            caretElement.style.transition = 'transform 0.15s ease-out, width 0.15s ease-out, height 0.15s ease-out';
+            caretElement.style.transformOrigin = 'top left';
+            
+            caretBorder = document.createElement('div');
+            caretBorder.className = 'absolute -left-[1px] top-[10%] h-[80%] w-[3px] bg-teal-500 animate-blink rounded-full shadow-[0_0_4px_rgba(20,184,166,0.6)]';
+            
+            caretElement.appendChild(caretBorder);
+            document.body.appendChild(caretElement);
+        }
+        
+        const rect = active.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        const left = rect.left + window.scrollX;
+        
+        caretElement.style.transform = `translate(${left}px, ${top}px)`;
+        caretElement.style.width = `${rect.width}px`;
+        caretElement.style.height = `${rect.height}px`;
+        caretElement.style.opacity = '1';
+    } else if (caretElement) {
+        caretElement.style.opacity = '0';
+    }
+    requestAnimationFrame(updateCaret);
+}
+requestAnimationFrame(updateCaret);

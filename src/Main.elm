@@ -938,7 +938,7 @@ viewDictation dict =
                             "bg-amber-500/20 dark:bg-amber-500/30 text-amber-600 dark:text-amber-400"
 
                         else
-                            "bg-teal-500/20 dark:bg-teal-500/30 text-teal-600 dark:text-teal-400"
+                            "text-teal-600 dark:text-teal-400 relative z-10"
 
                     else if idx < currentIndex then
                         if lt.wasWrong then
@@ -953,17 +953,10 @@ viewDictation dict =
                 classes =
                     String.join " " [ "relative inline-block rounded-sm leading-tight py-0.5", spaceClass, colorClass ]
 
-                caret =
-                    if isCurrent then
-                        span [ class "absolute -left-[1px] w-[3px] h-[1.1em] top-1/2 -translate-y-1/2 bg-teal-500 animate-blink rounded-full shadow-[0_0_4px_rgba(20,184,166,0.6)]" ] []
-
-                    else
-                        text ""
             in
             ( String.fromInt idx
-            , span [ class classes ]
-                [ caret
-                , if isSpace then
+            , span [ class classes, if isCurrent then Html.Attributes.id "active-letter" else class "" ]
+                [ if isSpace then
                     text "·"
 
                   else
