@@ -140,7 +140,7 @@ viewBarChart title desc data xMap =
             [ C.chart
                 [ CA.height 250
                 , CA.width 400
-                , CA.margin { top = 10, bottom = 30, left = 40, right = 10 }
+                , CA.margin { top = 20, bottom = 45, left = 55, right = 40 }
                 ]
                 [ C.xLabels 
                     [ CA.color "var(--chart-text)"
@@ -175,7 +175,7 @@ viewLetterChart title desc data =
             [ C.chart
                 [ CA.height 250
                 , CA.width 400
-                , CA.margin { top = 10, bottom = 30, left = 40, right = 10 }
+                , CA.margin { top = 20, bottom = 45, left = 55, right = 40 }
                 ]
                 [ C.xLabels 
                     [ CA.color "var(--chart-text)"
