@@ -179,7 +179,7 @@ viewMasteryChart data onHoverMastery =
             , CE.onMouseLeave (onHoverMastery [])
             ]
             [ C.xLabels [ CA.color "var(--chart-text)", CA.format (\i -> 
-                case List.head (List.drop (round i) stats) of
+                case List.head (List.drop (round i - 1) stats) of
                     Just s -> s.letter
                     Nothing -> ""
                 ) ]
