@@ -2,6 +2,12 @@ port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Navigation as Nav
+import Url exposing (Url)
+import Chart as C
+import Chart.Attributes as CA
+import Chart.Events as CE
+import Chart.Item as CI
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
@@ -29,8 +35,6 @@ type alias Model =
     { keyboard : Keyboard
     , dictation : Dictation
     , info : Info
-
-    -- seconds since last dictation generated
     , time : Float
     , lastSuccessTime : Float
     , lastKeyEvent : Float
@@ -38,6 +42,10 @@ type alias Model =
     , layoutKind : Layout.LayoutKind
     , started : Bool
     , theme : Theme
+    , currentErrors : List String
+    , navKey : Nav.Key
+    , route : Route
+    , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
     }
 
 
@@ -55,6 +63,17 @@ type alias SessionRecord =
     , lessonIdx : Int
     , errors : List String
     }
+
+type Route
+    = TypingRoute
+    | StatsRoute
+
+routeFromUrl : Url -> Route
+routeFromUrl url =
+    if url.fragment == Just "stats" then
+        StatsRoute
+    else
+        TypingRoute
 
 type alias Info =
     { metrics : Metrics
@@ -138,6 +157,10 @@ type Msg
     | Tick Time.Posix
     | SelectLayout Layout.LayoutKind
     | ToggleTheme
+    | UrlRequested Browser.UrlRequest
+    | UrlChanged Url
+    | GoTo Route
+    | OnHoverStats (List (CI.One { index : Float, record : SessionRecord } CI.Dot))
 
 
 port saveInfo : Encode.Value -> Cmd msg
@@ -259,6 +282,14 @@ update msg model =
                 ( dict, layout, attemptResult ) =
                     updateDictation keyEvent.code keyboard.modifier model.currentLayout dictation
 
+                newErrors =
+                    if attemptResult == WasWrong then
+                        Maybe.map (\c -> String.fromChar c.letter) dictation.current
+                            |> Maybe.map (\char -> model.currentErrors ++ [ char ])
+                            |> Maybe.withDefault model.currentErrors
+                    else
+                        model.currentErrors
+
                 updates =
                     let
                         targetLetter =
@@ -340,8 +371,19 @@ update msg model =
                 | keyboard = { keyboard | keys = updateKey keyEvent.code Released }
                 , currentLayout = layout
                 , dictation = dict
-                , info = { info | lessonIdx = updates.nextLessonIdx, dictationsCompleted = updates.nextCompleted, letterStats = updates.nextStats }
+                , info = 
+                    { info 
+                    | lessonIdx = updates.nextLessonIdx
+                    , dictationsCompleted = updates.nextCompleted
+                    , letterStats = updates.nextStats 
+                    , history = 
+                        if dict.current == Nothing then
+                            info.history ++ [ { timestamp = model.time, wpm = info.metrics.speed.new, accuracy = info.metrics.accuracy.new, lessonIdx = info.lessonIdx, errors = newErrors } ]
+                        else
+                            info.history
+                    }
                 , lastSuccessTime = updates.newLastSuccessTime
+                , currentErrors = if dict.current == Nothing then [] else newErrors
               }
             , if dict.current == Nothing then
                 DictGen.genForLevel updates.nextLessonIdx
@@ -531,6 +573,32 @@ update msg model =
                     "light"
                 )
             )
+
+        UrlRequested urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.navKey (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
+
+        UrlChanged url ->
+            ( { model | route = routeFromUrl url }, Cmd.none )
+
+        GoTo route ->
+            let
+                urlStr =
+                    case route of
+                        TypingRoute ->
+                            "/"
+
+                        StatsRoute ->
+                            "/#stats"
+            in
+            ( model, Nav.pushUrl model.navKey urlStr )
+
+        OnHoverStats items ->
+            ( { model | hoveringStats = items }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -723,35 +791,136 @@ viewHeader model =
             ]
         , div [ class "flex items-center gap-4 md:gap-6" ]
             [ viewLayoutSelector model.layoutKind
-            , Html.button
-                [ class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" ]
-                [ statsIcon ]
+            , if model.route == StatsRoute then
+                Html.button
+                    [ Html.Events.onClick (GoTo TypingRoute)
+                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center text-sm font-medium gap-1" 
+                    ]
+                    [ text "Back" ]
+              else
+                Html.button
+                    [ Html.Events.onClick (GoTo StatsRoute)
+                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                    ]
+                    [ statsIcon ]
             , viewThemeToggle model.theme
             ]
         ]
 
 
-view : Model -> Html Msg
-view model =
-    main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6" ]
-        [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
-            [ viewHeader model
-            , div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
-                [ viewInfo model.info
-                , viewDictation model.dictation
-                , viewKeyBoard model.keyboard
-                ]
+
+
+viewStats : Model -> Html Msg
+viewStats model =
+    Html.div [ class "w-full max-w-[1000px] flex flex-col flex-1 mt-8 gap-8 pb-16" ]
+        [ Html.div [ class "flex items-center justify-between" ]
+            [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ text "Performance Stats" ]
             ]
-        , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
-            [ text "an open-source project | made by "
-            , a
-                [ href "https://github.com/omer-biz/fetan"
-                , target "_blank"
-                , class "font-medium hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
-                ]
-                [ text "omer" ]
+        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
+            [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ text "Speed & Accuracy Timeline" ]
+            , Html.div [ class "flex-1 w-full" ]
+                [ viewTimelineChart model ]
+            ]
+        , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-2xl shadow-sm border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
+            [ Html.h2 [ class "text-lg font-semibold text-stone-700 dark:text-stone-300 mb-4" ] [ text "Letter Latency (Mastery)" ]
+            , Html.div [ class "flex-1 w-full" ]
+                [ viewMasteryChart model ]
             ]
         ]
+
+viewTimelineChart : Model -> Html Msg
+viewTimelineChart model =
+    let
+        history =
+            List.indexedMap (\i r -> { index = toFloat i, record = r }) model.info.history
+    in
+    if List.isEmpty history then
+        Html.div [ class "flex items-center justify-center h-full text-stone-500" ] [ text "Complete a lesson to see your timeline." ]
+    else
+        C.chart
+            [ CA.height 300
+            , CA.width 900
+            , CA.margin { top = 20, bottom = 30, left = 40, right = 40 }
+            , CE.onMouseMove OnHoverStats (CE.getNearest CI.dots)
+            , CE.onMouseLeave (OnHoverStats [])
+            ]
+            [ C.xLabels [ CA.amount (List.length history) ]
+            , C.yLabels [ CA.withGrid ]
+            , C.series .index
+                [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "rgb(13, 148, 136)" ] []
+                , C.interpolated (\d -> toFloat d.record.accuracy) [ CA.color "rgb(99, 102, 241)", CA.dashed [5, 5] ] []
+                ]
+                history
+            , C.each model.hoveringStats <| \p item ->
+                let
+                    rec = (CI.getData item).record
+                in
+                [ C.tooltip item [] [] 
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700" ] 
+                        [ Html.div [ class "font-bold text-teal-600" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
+                        , Html.div [ class "font-bold text-indigo-500" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
+                        , Html.div [] [ Html.text ("Level: " ++ String.fromInt rec.lessonIdx) ]
+                        , Html.div [] [ Html.text ("Errors: " ++ if List.isEmpty rec.errors then "None!" else String.join ", " rec.errors) ]
+                        ]
+                    ]
+                ]
+            ]
+
+viewMasteryChart : Model -> Html Msg
+viewMasteryChart model =
+    let
+        stats =
+            Dict.toList model.info.letterStats
+                |> List.indexedMap (\i (letter, stat) -> { index = toFloat i, letter = letter, stat = stat })
+    in
+    if List.isEmpty stats then
+        Html.div [ class "flex items-center justify-center h-full text-stone-500" ] [ text "No data available." ]
+    else
+        C.chart
+            [ CA.height 300
+            , CA.width 900
+            , CA.margin { top = 20, bottom = 30, left = 40, right = 20 }
+            ]
+            [ C.xLabels [ CA.format (\i -> 
+                case List.head (List.drop (round i) stats) of
+                    Just s -> s.letter
+                    Nothing -> ""
+                ) ]
+            , C.yLabels [ CA.withGrid ]
+            , C.bars
+                [ CA.margin 0.1 ]
+                [ C.bar (\x -> x.stat.latencyEma) [ CA.color "rgb(245, 158, 11)" ] ]
+                stats
+            ]
+
+view : Model -> Browser.Document Msg
+view model =
+    { title = "ፈጠን (Fetan)"
+    , body = 
+        [ main_ [ class "text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6" ]
+            [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
+                [ viewHeader model
+                , if model.route == StatsRoute then
+                    viewStats model
+                  else
+                    div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
+                        [ viewInfo model.info
+                        , viewDictation model.dictation
+                        , viewKeyBoard model.keyboard
+                        ]
+                ]
+            , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
+                [ text "an open-source project | made by "
+                , a
+                    [ href "https://github.com/omer-biz/fetan"
+                    , target "_blank"
+                    , class "font-medium hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
+                    ]
+                    [ text "omer" ]
+                ]
+            ]
+        ]
+    }
 
 
 layoutKindFromString : String -> Layout.LayoutKind
@@ -1361,8 +1530,8 @@ insertAt index obj lst =
                 x :: insertAt (index - 1) obj xs
 
 
-init : Encode.Value -> ( Model, Cmd Msg )
-init flags =
+init : Encode.Value -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url navKey =
     let
         info =
             case Decode.decodeValue (Decode.field "lessonInfo" infoDecoder) flags of
@@ -1419,6 +1588,10 @@ init flags =
             , layoutKind = curLayoutKind
             , started = False
             , theme = themeStr
+            , currentErrors = []
+            , navKey = navKey
+            , route = routeFromUrl url
+            , hoveringStats = []
             }
 
         dictation =
@@ -1530,11 +1703,13 @@ initMetric =
 
 main : Program Encode.Value Model Msg
 main =
-    Browser.element
+    Browser.application
         { init = init
         , view = view
         , update = update
         , subscriptions = subscriptions
+        , onUrlRequest = UrlRequested
+        , onUrlChange = UrlChanged
         }
 
 

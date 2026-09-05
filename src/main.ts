@@ -29,7 +29,6 @@ import { get, set } from 'idb-keyval';
     }
 
     const app = Elm.Main.init({
-      node: document.getElementById("app"),
       flags: {
           lessonInfo: flagsInfo,
           theme: savedTheme
