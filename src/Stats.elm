@@ -3,6 +3,7 @@ module Stats exposing (SessionRecord, LetterStat, StatsData, viewStats)
 import Html exposing (Html)
 import Html.Attributes exposing (class)
 import Dict exposing (Dict)
+import Time
 import Chart as C
 import Chart.Attributes as CA
 import Chart.Events as CE
@@ -113,6 +114,29 @@ viewStats data onHover onHoverMastery =
             ]
         ]
 
+
+formatDate : Float -> String
+formatDate ts =
+    let
+        posix = Time.millisToPosix (round ts)
+        month = 
+            case Time.toMonth Time.utc posix of
+                Time.Jan -> "Jan"
+                Time.Feb -> "Feb"
+                Time.Mar -> "Mar"
+                Time.Apr -> "Apr"
+                Time.May -> "May"
+                Time.Jun -> "Jun"
+                Time.Jul -> "Jul"
+                Time.Aug -> "Aug"
+                Time.Sep -> "Sep"
+                Time.Oct -> "Oct"
+                Time.Nov -> "Nov"
+                Time.Dec -> "Dec"
+        day = String.fromInt (Time.toDay Time.utc posix)
+    in
+    month ++ " " ++ day
+
 viewTimelineChart : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> Html msg
 viewTimelineChart data onHover =
     let
@@ -129,9 +153,9 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (min 8 (List.length history)), CA.color "var(--chart-text)", CA.format (\i -> "S" ++ String.fromInt (round i + 1)) ]
+            [ C.xLabels [ CA.amount (min 6 (List.length history)), CA.color "var(--chart-text)", CA.format formatDate ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
-            , C.series .index
+            , C.series (\d -> d.record.timestamp)
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
                 , C.interpolated (\d -> toFloat d.record.accuracy) [ CA.color "var(--chart-secondary)", CA.width 2, CA.dashed [6, 6] ] []
                 ]
