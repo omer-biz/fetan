@@ -951,11 +951,11 @@ viewDictation dict =
                         "text-stone-800 dark:text-stone-200"
 
                 classes =
-                    String.join " " [ "relative inline-block rounded-sm ", spaceClass, colorClass ]
+                    String.join " " [ "relative inline-block rounded-sm leading-tight py-0.5", spaceClass, colorClass ]
 
                 caret =
                     if isCurrent then
-                        span [ class "absolute -left-[1px] w-[3px] h-[90%] top-[5%] bg-teal-500 animate-pulse rounded-full shadow-[0_0_8px_rgba(20,184,166,0.8)] caret-animate" ] []
+                        span [ class "absolute -left-[1px] w-[3px] h-[1.1em] top-1/2 -translate-y-1/2 bg-teal-500 animate-blink rounded-full shadow-[0_0_4px_rgba(20,184,166,0.6)]" ] []
 
                     else
                         text ""
