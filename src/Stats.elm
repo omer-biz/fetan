@@ -87,7 +87,7 @@ viewStats data onHover onHoverMastery =
             [ Html.div [ class "flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4" ]
                 [ Html.div []
                     [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text "Progress Timeline" ]
-                    , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "Speed (WPM) and Accuracy (%) across all your completed lessons." ]
+                    , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "Speed (WPM) and Accuracy (%) across all your completed sessions." ]
                     ]
                 , Html.div [ class "flex gap-4 text-sm font-medium" ]
                     [ Html.div [ class "flex items-center gap-2" ]
@@ -129,11 +129,7 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (min 8 (List.length history)), CA.color "var(--chart-text)", CA.format (\i -> 
-                case List.head (List.drop (round i) history) of
-                    Just s -> "L" ++ String.fromInt s.record.lessonIdx
-                    Nothing -> ""
-                ) ]
+            [ C.xLabels [ CA.amount (min 8 (List.length history)), CA.color "var(--chart-text)", CA.format (\i -> "S" ++ String.fromInt (round i + 1)) ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.series .index
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
