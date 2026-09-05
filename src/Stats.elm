@@ -128,9 +128,9 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (List.length history), CA.color "var(--chart-text)", CA.format (\i -> 
+            [ C.xLabels [ CA.amount (min 8 (List.length history)), CA.color "var(--chart-text)", CA.format (\i -> 
                 case List.head (List.drop (round i) history) of
-                    Just s -> "Lesson " ++ String.fromInt s.record.lessonIdx
+                    Just s -> "L" ++ String.fromInt s.record.lessonIdx
                     Nothing -> ""
                 ) ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
