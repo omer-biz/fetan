@@ -5,22 +5,25 @@ import Browser
 import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
-import Html.Keyed as Keyed
 import Html exposing (Html, a, div, main_, option, p, select, span, table, tbody, td, text, tr)
-import Svg exposing (svg, path)
-import Svg.Attributes as SvgAttr
 import Html.Attributes exposing (class, href, selected, tabindex, target, value)
 import Html.Events exposing (onBlur, onFocus, onInput, preventDefaultOn)
+import Html.Keyed as Keyed
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
 import Models.Layout as Layout exposing (Layout(..))
 import Random
+import Svg exposing (path, svg)
+import Svg.Attributes as SvgAttr
 import Time
 import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 
 
-type Theme = Light | Dark
+type Theme
+    = Light
+    | Dark
+
 
 type alias Model =
     { keyboard : Keyboard
@@ -29,7 +32,7 @@ type alias Model =
 
     -- seconds since last dictation generated
     , time : Float
-
+    , lastSuccessTime : Float
     , lastKeyEvent : Float
     , currentLayout : Layout
     , layoutKind : Layout.LayoutKind
@@ -38,11 +41,19 @@ type alias Model =
     }
 
 
+type alias LetterStat =
+    { errorEma : Float
+    , latencyEma : Float
+    , count : Int
+    }
+
+
 type alias Info =
     { metrics : Metrics
     , lessonIdx : Int
     , layoutKind : String
     , dictationsCompleted : Int
+    , letterStats : Dict.Dict String LetterStat
     }
 
 
@@ -93,10 +104,23 @@ type alias Key =
     }
 
 
+type AttemptResult
+    = WasCorrect
+    | WasWrong
+    | WasPartial
+    | NoOpResult
+
+
+type alias KeyEvent =
+    { code : String
+    , timeStamp : Float
+    }
+
+
 type Msg
     = NoOp
-    | KeyDown String
-    | KeyUp String
+    | KeyDown KeyEvent
+    | KeyUp KeyEvent
     | ModKeyDown String
     | ModKeyUp String
     | FocusKeyBr
@@ -108,6 +132,16 @@ type Msg
 
 
 port saveInfo : Encode.Value -> Cmd msg
+
+
+learningSequence : Array.Array String
+learningSequence =
+    Array.fromList [ "ሀ", "ለ", "በ", "መ", "ነ", "ረ", "ሰ", "ከ", "ቀ", "ወ", "ተ", "ቸ", "ዘ", "ደ", "ጀ", "አ", "ፈ", "ፐ", "ሐ", "ዐ", "ኀ", "ሸ", "የ", "ሠ", "ኘ", "ገ", "ጠ", "ጨ", "ጰ", "ጸ", "ፀ", "ዠ", "ኸ" ]
+
+
+getBaseLetterForLesson : Int -> String
+getBaseLetterForLesson idx =
+    Array.get (idx - 1) learningSequence |> Maybe.withDefault "ሀ"
 
 
 wordCount : number
@@ -200,34 +234,108 @@ update msg model =
         BlurKeyBr ->
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
-        KeyDown key ->
-            ( { model | keyboard = { keyboard | keys = updateKey key Pressed }, lastKeyEvent = 0, started = True }, Cmd.none )
-
-        KeyUp key ->
+        KeyDown keyEvent ->
             let
-                ( dict, layout ) =
-                    updateDictation key keyboard.modifier model.currentLayout dictation
+                newLastSuccessTime =
+                    if not model.started then
+                        keyEvent.timeStamp
 
-                (nextLessonIdx, nextCompleted) =
-                    if dict.current == Nothing then
-                        let
-                            completed = info.dictationsCompleted + 1
-                        in
-                        if completed >= 3 && info.lessonIdx < 34 then
-                            (info.lessonIdx + 1, 0)
-                        else
-                            (info.lessonIdx, completed)
                     else
-                        (info.lessonIdx, info.dictationsCompleted)
+                        model.lastSuccessTime
+            in
+            ( { model | keyboard = { keyboard | keys = updateKey keyEvent.code Pressed }, lastKeyEvent = 0, started = True, lastSuccessTime = newLastSuccessTime }, Cmd.none )
+
+        KeyUp keyEvent ->
+            let
+                ( dict, layout, attemptResult ) =
+                    updateDictation keyEvent.code keyboard.modifier model.currentLayout dictation
+
+                updates =
+                    let
+                        targetLetter =
+                            Maybe.map (\curr -> String.fromChar curr.letter) dictation.current |> Maybe.withDefault ""
+
+                        oldStat =
+                            Dict.get targetLetter info.letterStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+
+                        ( updatedStats, updatedTime ) =
+                            case attemptResult of
+                                NoOpResult ->
+                                    ( info.letterStats, model.lastSuccessTime )
+
+                                WasPartial ->
+                                    ( info.letterStats, model.lastSuccessTime )
+
+                                WasWrong ->
+                                    let
+                                        newStat =
+                                            { oldStat | errorEma = 0.1 * 1.0 + 0.9 * oldStat.errorEma }
+                                    in
+                                    ( Dict.insert targetLetter newStat info.letterStats, model.lastSuccessTime )
+
+                                WasCorrect ->
+                                    let
+                                        latency =
+                                            keyEvent.timeStamp - model.lastSuccessTime
+
+                                        newStat =
+                                            if oldStat.count == 0 then
+                                                { oldStat | count = 1, latencyEma = latency, errorEma = 0 }
+
+                                            else
+                                                { oldStat
+                                                    | count = oldStat.count + 1
+                                                    , latencyEma = 0.1 * latency + 0.9 * oldStat.latencyEma
+                                                    , errorEma = 0.9 * oldStat.errorEma
+                                                }
+                                    in
+                                    ( Dict.insert targetLetter newStat info.letterStats, keyEvent.timeStamp )
+
+                        isFinished =
+                            dict.current == Nothing
+
+                        ( finalLessonIdx, finalCompleted ) =
+                            if isFinished then
+                                let
+                                    baseLetter =
+                                        getBaseLetterForLesson info.lessonIdx
+
+                                    stat =
+                                        Dict.get baseLetter updatedStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+
+                                    accuracyScore =
+                                        clamp 0 1 (1.0 - (stat.errorEma * 10))
+
+                                    speedScore =
+                                        clamp 0 1 ((2500 - stat.latencyEma) / 1300)
+
+                                    conf =
+                                        0.5 + (accuracyScore * 0.4) + (speedScore * 0.1)
+                                in
+                                if stat.count >= 15 && conf > 0.85 && info.lessonIdx < 34 then
+                                    ( info.lessonIdx + 1, 0 )
+
+                                else
+                                    ( info.lessonIdx, info.dictationsCompleted + 1 )
+
+                            else
+                                ( info.lessonIdx, info.dictationsCompleted )
+                    in
+                    { nextLessonIdx = finalLessonIdx
+                    , nextCompleted = finalCompleted
+                    , nextStats = updatedStats
+                    , newLastSuccessTime = updatedTime
+                    }
             in
             ( { model
-                | keyboard = { keyboard | keys = updateKey key Released }
+                | keyboard = { keyboard | keys = updateKey keyEvent.code Released }
                 , currentLayout = layout
                 , dictation = dict
-                , info = { info | lessonIdx = nextLessonIdx, dictationsCompleted = nextCompleted }
+                , info = { info | lessonIdx = updates.nextLessonIdx, dictationsCompleted = updates.nextCompleted, letterStats = updates.nextStats }
+                , lastSuccessTime = updates.newLastSuccessTime
               }
             , if dict.current == Nothing then
-                DictGen.genForLevel nextLessonIdx
+                DictGen.genForLevel updates.nextLessonIdx
                     |> Random.generate NewDict
 
               else
@@ -238,8 +346,12 @@ update msg model =
             let
                 currList =
                     case dictation.current of
-                        Just c -> [ c ]
-                        Nothing -> []
+                        Just c ->
+                            [ c ]
+
+                        Nothing ->
+                            []
+
                 allChars =
                     List.concat [ dictation.prev, currList, dictation.next ]
 
@@ -283,6 +395,7 @@ update msg model =
                     case dictation.current of
                         Just curr ->
                             Layout.hint curr.letter curLayout |> hintToList
+
                         Nothing ->
                             []
 
@@ -298,7 +411,12 @@ update msg model =
                         keyboard.keys
             in
             ( { model
-                | time = if model.started then model.time + 1 else 0
+                | time =
+                    if model.started then
+                        model.time + 1
+
+                    else
+                        0
                 , lastKeyEvent = model.lastKeyEvent + 1
                 , keyboard = { keyboard | keys = keys }
               }
@@ -373,7 +491,9 @@ update msg model =
                                 else
                                     { k | view = Layout.render keyboard.modifier k.code newLayout }
                             )
-                newInfo = { info | layoutKind = layoutKindToString kind }
+
+                newInfo =
+                    { info | layoutKind = layoutKindToString kind }
             in
             ( { model
                 | layoutKind = kind
@@ -387,9 +507,21 @@ update msg model =
         ToggleTheme ->
             let
                 newTheme =
-                    if model.theme == Dark then Light else Dark
+                    if model.theme == Dark then
+                        Light
+
+                    else
+                        Dark
             in
-            ( { model | theme = newTheme }, saveTheme (if newTheme == Dark then "dark" else "light") )
+            ( { model | theme = newTheme }
+            , saveTheme
+                (if newTheme == Dark then
+                    "dark"
+
+                 else
+                    "light"
+                )
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -450,7 +582,7 @@ updateDictation :
     -> KeyModifier
     -> Layout
     -> Dictation
-    -> ( Dictation, Layout )
+    -> ( Dictation, Layout, AttemptResult )
 updateDictation codePoint keybrState layout dictation =
     case dictation.current of
         Just current ->
@@ -475,16 +607,16 @@ updateDictation codePoint keybrState layout dictation =
             in
             case Layout.update keybrState codePoint current.letter layout of
                 ( newLayout, Partial ) ->
-                    ( rollingCurrent, newLayout )
+                    ( rollingCurrent, newLayout, WasPartial )
 
                 ( newLayout, Correct ) ->
-                    ( advanceDictation, newLayout )
+                    ( advanceDictation, newLayout, WasCorrect )
 
                 ( newLayout, Wrong ) ->
-                    ( wrongAttempt, newLayout )
+                    ( wrongAttempt, newLayout, WasWrong )
 
         Nothing ->
-            ( dictation, layout )
+            ( dictation, layout, NoOpResult )
 
 
 updateSpeed : Float -> Int -> Metrics -> Metrics
@@ -524,16 +656,19 @@ sunIcon =
             []
         ]
 
+
 moonIcon : Html msg
 moonIcon =
     svg
         [ SvgAttr.viewBox "0 0 24 24", SvgAttr.fill "currentColor", SvgAttr.class "w-6 h-6" ]
         [ path
-            [ SvgAttr.fillRule "evenodd", SvgAttr.clipRule "evenodd"
+            [ SvgAttr.fillRule "evenodd"
+            , SvgAttr.clipRule "evenodd"
             , SvgAttr.d "M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z"
             ]
             []
         ]
+
 
 viewThemeToggle : Theme -> Html Msg
 viewThemeToggle theme =
@@ -541,6 +676,7 @@ viewThemeToggle theme =
         icon =
             if theme == Dark then
                 sunIcon
+
             else
                 moonIcon
     in
@@ -550,6 +686,7 @@ viewThemeToggle theme =
         , class "absolute top-6 right-6 text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity"
         ]
         [ icon ]
+
 
 view : Model -> Html Msg
 view model =
@@ -563,11 +700,11 @@ view model =
             ]
         , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
             [ text "an open-source project | made by "
-            , a 
+            , a
                 [ href "https://github.com/omer-biz/fetan"
                 , target "_blank"
                 , class "font-medium hover:text-teal-600 dark:hover:text-teal-400 transition-colors"
-                ] 
+                ]
                 [ text "omer" ]
             ]
         ]
@@ -588,12 +725,18 @@ layoutKindFromString str =
         _ ->
             Layout.GeezIME
 
+
 layoutKindToString : Layout.LayoutKind -> String
 layoutKindToString kind =
     case kind of
-        Layout.SilPowerG -> "SilPowerG"
-        Layout.PowerGeez -> "PowerGeez"
-        Layout.GeezIME -> "GeezIME"
+        Layout.SilPowerG ->
+            "SilPowerG"
+
+        Layout.PowerGeez ->
+            "PowerGeez"
+
+        Layout.GeezIME ->
+            "GeezIME"
 
 
 viewLayoutSelector : Layout.LayoutKind -> Html Msg
@@ -668,7 +811,7 @@ layoutInfo kind =
 viewInfo : Info -> Html Msg
 viewInfo info =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
-        [ viewMetrics info.metrics
+        [ viewMetrics info
         , div [ class "mt-4 flex items-center text-stone-500 dark:text-stone-400 text-sm" ]
             [ span [ class "mr-3 uppercase tracking-widest font-semibold" ] [ text "Current Keys:" ]
             , viewCurrentKeys info.lessonIdx
@@ -679,37 +822,78 @@ viewInfo info =
 viewCurrentKeys : Int -> Html msg
 viewCurrentKeys idx =
     let
-        effIdx = clamp 1 33 idx
-        unlocked = List.take effIdx DictGen.learningSequence
-        newest = List.drop (effIdx - 1) DictGen.learningSequence |> List.head |> Maybe.withDefault 'ሀ'
+        effIdx =
+            clamp 1 33 idx
+
+        unlocked =
+            List.take effIdx DictGen.learningSequence
+
+        newest =
+            List.drop (effIdx - 1) DictGen.learningSequence |> List.head |> Maybe.withDefault 'ሀ'
     in
     div [ class "flex flex-wrap gap-1 md:gap-1.5 justify-center" ]
-        (List.map (\c -> 
-            let
-                isNewest = c == newest
-                bgColor = if isNewest then "bg-teal-500 text-white shadow-md shadow-teal-500/20" else "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
-            in
-            span [ class ("mx-0.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs md:text-sm font-medium transition-all " ++ bgColor) ] 
-                [ text (String.fromChar c) ]
-        ) unlocked)
+        (List.map
+            (\c ->
+                let
+                    isNewest =
+                        c == newest
+
+                    bgColor =
+                        if isNewest then
+                            "bg-teal-500 text-white shadow-md shadow-teal-500/20"
+
+                        else
+                            "bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300"
+                in
+                span [ class ("mx-0.5 px-1.5 py-0.5 md:px-2 md:py-1 rounded text-xs md:text-sm font-medium transition-all " ++ bgColor) ]
+                    [ text (String.fromChar c) ]
+            )
+            unlocked
+        )
 
 
-viewMetrics : Metrics -> Html msg
-viewMetrics metrics =
+viewMetrics : Info -> Html msg
+viewMetrics info =
     let
+        metrics =
+            info.metrics
+
+        baseLetter =
+            getBaseLetterForLesson info.lessonIdx
+
+        stat =
+            Dict.get baseLetter info.letterStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+
+        accuracyScore =
+            clamp 0 1 (1.0 - (stat.errorEma * 10))
+
+        speedScore =
+            clamp 0 1 ((2500 - stat.latencyEma) / 1300)
+
+        conf =
+            if stat.count < 15 then
+                0.84 * (toFloat stat.count / 15.0)
+
+            else
+                0.5 + (accuracyScore * 0.4) + (speedScore * 0.1)
+
+        confStr =
+            String.fromInt (round (conf * 100))
+
         viewMetric label m pst =
             div [ class "flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-xl shadow-sm border border-stone-200 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
                 [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold text-center" ] [ text label ]
                 , div [ class "flex items-baseline gap-1" ]
-                    [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text <| String.fromInt m.new ]
+                    [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text m ]
                     , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500" ] [ text pst ]
                     ]
                 ]
     in
     div [ class "flex flex-wrap justify-center gap-3 md:gap-6 w-full" ]
-        [ viewMetric "Speed" metrics.speed "wpm"
-        , viewMetric "Accuracy" metrics.accuracy "%"
-        , viewMetric "Score" metrics.score ""
+        [ viewMetric "Speed" (String.fromInt metrics.speed.new) "wpm"
+        , viewMetric "Accuracy" (String.fromInt metrics.accuracy.new) "%"
+        , viewMetric "Confidence" confStr "%"
+        , viewMetric "Score" (String.fromInt metrics.score.new) ""
         ]
 
 
@@ -749,15 +933,20 @@ viewDictation dict =
                     if isCurrent then
                         if (lt.wasWrong && (lt.state /= Rolling)) || lt.state == Incorrect then
                             "bg-red-500/20 dark:bg-red-500/30 text-red-600 dark:text-red-400"
+
                         else if lt.state == Rolling then
                             "bg-amber-500/20 dark:bg-amber-500/30 text-amber-600 dark:text-amber-400"
+
                         else
                             "bg-teal-500/20 dark:bg-teal-500/30 text-teal-600 dark:text-teal-400"
+
                     else if idx < currentIndex then
                         if lt.wasWrong then
                             "text-red-600 dark:text-red-400 opacity-60"
+
                         else
                             "text-stone-300 dark:text-stone-600"
+
                     else
                         "text-stone-800 dark:text-stone-200"
 
@@ -859,59 +1048,141 @@ viewRow row =
 fingerColorClass : String -> String
 fingerColorClass code =
     case code of
-        "KeyQ" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
-        "KeyA" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
-        "KeyZ" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
-        "ShiftLeft" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
-        "Tab" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
-        "CapsLock" -> "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
+        "KeyQ" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyW" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
-        "KeyS" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
-        "KeyX" -> "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
+        "KeyA" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyE" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
-        "KeyD" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
-        "KeyC" -> "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+        "KeyZ" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyR" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
-        "KeyF" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
-        "KeyV" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
-        "KeyT" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
-        "KeyG" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
-        "KeyB" -> "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+        "ShiftLeft" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyY" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
-        "KeyH" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
-        "KeyN" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
-        "KeyU" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
-        "KeyJ" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
-        "KeyM" -> "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+        "Tab" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyI" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
-        "KeyK" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
-        "Comma" -> "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+        "CapsLock" ->
+            "border-b-[4px] border-b-pink-400 dark:border-b-pink-600/50"
 
-        "KeyO" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
-        "KeyL" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
-        "Period" -> "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+        "KeyW" ->
+            "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
 
-        "KeyP" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "Semicolon" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "Slash" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "BracketLeft" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "BracketRight" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "Quote" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "Backslash" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "ShiftRight" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
-        "Enter" -> "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+        "KeyS" ->
+            "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
 
-        "Space" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
-        "AltLeft" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
-        "AltRight" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
-        "ControlLeft" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
-        "ControlRight" -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
-        _ -> "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+        "KeyX" ->
+            "border-b-[4px] border-b-orange-400 dark:border-b-orange-600/50"
+
+        "KeyE" ->
+            "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+
+        "KeyD" ->
+            "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+
+        "KeyC" ->
+            "border-b-[4px] border-b-yellow-400 dark:border-b-yellow-600/50"
+
+        "KeyR" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyF" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyV" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyT" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyG" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyB" ->
+            "border-b-[4px] border-b-green-400 dark:border-b-green-600/50"
+
+        "KeyY" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyH" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyN" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyU" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyJ" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyM" ->
+            "border-b-[4px] border-b-cyan-400 dark:border-b-cyan-600/50"
+
+        "KeyI" ->
+            "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+
+        "KeyK" ->
+            "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+
+        "Comma" ->
+            "border-b-[4px] border-b-blue-400 dark:border-b-blue-600/50"
+
+        "KeyO" ->
+            "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+
+        "KeyL" ->
+            "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+
+        "Period" ->
+            "border-b-[4px] border-b-indigo-400 dark:border-b-indigo-600/50"
+
+        "KeyP" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Semicolon" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Slash" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "BracketLeft" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "BracketRight" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Quote" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Backslash" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "ShiftRight" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Enter" ->
+            "border-b-[4px] border-b-purple-400 dark:border-b-purple-600/50"
+
+        "Space" ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
+        "AltLeft" ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
+        "AltRight" ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
+        "ControlLeft" ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
+        "ControlRight" ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
+        _ ->
+            "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
+
 
 viewKey : Key -> Html msg
 viewKey key =
@@ -922,10 +1193,10 @@ viewKey key =
                     "bg-teal-500 text-stone-50 dark:text-stone-950 border-b-0 translate-y-[4px]"
 
                 Released ->
-                    "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ (fingerColorClass key.code)
+                    "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 border-t border-l border-r border-stone-200 dark:border-stone-700 " ++ fingerColorClass key.code
 
                 Hinted ->
-                    "bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse" 
+                    "bg-teal-100 dark:bg-teal-900/70 text-teal-900 dark:text-teal-100 border-2 border-teal-400 dark:border-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.5)] animate-pulse"
 
         extraStyle =
             Dict.get key.code specialKeys
@@ -967,29 +1238,30 @@ modifierKeys =
     [ "ShiftLeft", "ShiftRight", "CapsLock", "ControlRight", "ControlLeft", "AltRight", "AltLeft", "Tab", "MetaLeft", "MetaRight", "Enter" ]
 
 
-dispatchHelper : (String -> Msg) -> (String -> Msg) -> String -> Msg
+dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
 dispatchHelper modMsg regularMsg key =
-    if List.member key modifierKeys then
-        modMsg key
+    if List.member key.code modifierKeys then
+        modMsg key.code
 
     else
         regularMsg key
 
 
-dispatchDown : String -> Msg
+dispatchDown : KeyEvent -> Msg
 dispatchDown =
     dispatchHelper ModKeyDown KeyDown
 
 
-dispatchUp : String -> Msg
+dispatchUp : KeyEvent -> Msg
 dispatchUp =
     dispatchHelper ModKeyUp KeyUp
 
 
-keyDecoder : Decode.Decoder String
+keyDecoder : Decode.Decoder KeyEvent
 keyDecoder =
-    Decode.map (\code -> code) <|
-        Decode.field "code" Decode.string
+    Decode.map2 KeyEvent
+        (Decode.field "code" Decode.string)
+        (Decode.field "timeStamp" Decode.float)
 
 
 tab : Key
@@ -1066,8 +1338,11 @@ init flags =
 
                 Err _ ->
                     case Decode.decodeValue infoDecoder flags of
-                        Ok m -> m
-                        Err _ -> Info initMetric 1 "GeezIME" 0
+                        Ok m ->
+                            m
+
+                        Err _ ->
+                            Info initMetric 1 "GeezIME" 0 Dict.empty
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
@@ -1094,11 +1369,24 @@ init flags =
 
         themeStr =
             case Decode.decodeValue (Decode.field "theme" Decode.string) flags of
-                Ok "light" -> Light
-                _ -> Dark
+                Ok "light" ->
+                    Light
+
+                _ ->
+                    Dark
 
         model =
-            Model keyboard (stringToDictation "") info 0 0 curLayout curLayoutKind False themeStr
+            { keyboard = keyboard
+            , dictation = stringToDictation ""
+            , info = info
+            , time = 0
+            , lastSuccessTime = 0
+            , lastKeyEvent = 0
+            , currentLayout = curLayout
+            , layoutKind = curLayoutKind
+            , started = False
+            , theme = themeStr
+            }
 
         dictation =
             DictGen.genForLevel info.lessonIdx
@@ -1121,13 +1409,27 @@ metricsDecoder =
         (Decode.field "score" metricDecoder)
 
 
+letterStatDecoder : Decode.Decoder LetterStat
+letterStatDecoder =
+    Decode.map3 LetterStat
+        (Decode.field "errorEma" Decode.float)
+        (Decode.field "latencyEma" Decode.float)
+        (Decode.field "count" Decode.int)
+
+
+statsDictDecoder : Decode.Decoder (Dict.Dict String LetterStat)
+statsDictDecoder =
+    Decode.dict letterStatDecoder
+
+
 infoDecoder : Decode.Decoder Info
 infoDecoder =
-    Decode.map4 Info
+    Decode.map5 Info
         (Decode.field "metrics" metricsDecoder)
         (Decode.field "lessonIdx" Decode.int)
         (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
         (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
+        (Decode.maybe (Decode.field "letterStats" statsDictDecoder) |> Decode.map (Maybe.withDefault Dict.empty))
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -1144,6 +1446,15 @@ encodeMetrics metrics =
         ]
 
 
+encodeLetterStat : LetterStat -> Encode.Value
+encodeLetterStat stat =
+    Encode.object
+        [ ( "errorEma", Encode.float stat.errorEma )
+        , ( "latencyEma", Encode.float stat.latencyEma )
+        , ( "count", Encode.int stat.count )
+        ]
+
+
 encodeInfo : Info -> Encode.Value
 encodeInfo info =
     Encode.object
@@ -1151,6 +1462,7 @@ encodeInfo info =
         , ( "lessonIdx", Encode.int info.lessonIdx )
         , ( "layoutKind", Encode.string info.layoutKind )
         , ( "dictationsCompleted", Encode.int info.dictationsCompleted )
+        , ( "letterStats", Encode.dict identity encodeLetterStat info.letterStats )
         ]
 
 
