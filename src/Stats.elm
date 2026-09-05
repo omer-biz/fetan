@@ -154,7 +154,7 @@ viewTimelineChart data onHover =
             , CE.onMouseLeave (onHover [])
             ]
             [ C.xLabels [ CA.amount (min 6 (List.length history)), CA.color "var(--chart-text)", CA.format formatDate ]
-            , C.yLabels [ CA.color "var(--chart-text)" ]
+            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
             , C.series (\d -> d.record.timestamp)
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
@@ -204,7 +204,7 @@ viewMasteryChart data onHoverMastery =
                     Just s -> s.letter
                     Nothing -> ""
                 ) ]
-            , C.yLabels [ CA.color "var(--chart-text)", CA.format (\y -> String.fromInt (round y) ++ "ms") ]
+            , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)", CA.format (\y -> String.fromInt (round y) ++ "ms") ]
             , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
             , C.bars
                 [ CA.margin 0.2 ]
