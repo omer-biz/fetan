@@ -129,11 +129,14 @@ viewDashboard sessions model =
             |> List.indexedMap (\i (l, c) -> { index = toFloat i, letter = l, count = c })
     in
     Html.div [ class "flex flex-col gap-8 w-full" ]
-        [ Html.div [ class "grid grid-cols-2 md:grid-cols-4 gap-4" ]
-            [ statCard "Recent Sessions" (String.fromInt total)
-            , statCard "Avg Speed" (String.fromInt (round avgWpm) ++ " wpm")
-            , statCard "Avg Accuracy" (String.fromInt (round avgAcc) ++ "%")
-            , statCard "Hardest Letter" (List.head letterCounts |> Maybe.map .letter |> Maybe.withDefault "-")
+        [ Html.div [ class "flex-1 bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-6 flex flex-col gap-4" ]
+            [ Html.h2 [ class "text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100 mb-2" ] [ Html.text "Global Averages" ]
+            , Html.div [ class "grid grid-cols-2 md:grid-cols-4 gap-4" ]
+                [ statCard "Recent Sessions" (String.fromInt total) ""
+                , statCard "Avg Speed" (String.fromInt (round avgWpm)) "wpm"
+                , statCard "Avg Accuracy" (String.fromInt (round avgAcc) ++ "%") ""
+                , statCard "Hardest Letter" (List.head letterCounts |> Maybe.map .letter |> Maybe.withDefault "-") ""
+                ]
             ]
         , Html.div [ class "grid grid-cols-1 md:grid-cols-2 gap-8" ]
             [ viewBarChart "Lesson Drop-off" "Number of sessions played at each level" lessonCounts model.hoveringLesson
@@ -141,11 +144,14 @@ viewDashboard sessions model =
             ]
         ]
 
-statCard : String -> String -> Html Msg
-statCard label value =
-    Html.div [ class "bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-6 flex flex-col justify-center gap-1" ]
-        [ Html.div [ class "text-xs font-bold tracking-widest text-slate-400 dark:text-slate-500 uppercase" ] [ Html.text label ]
-        , Html.div [ class "text-3xl font-black text-slate-700 dark:text-slate-200" ] [ Html.text value ]
+statCard : String -> String -> String -> Html Msg
+statCard label val sub =
+    Html.div [ class "flex flex-col bg-slate-50 dark:bg-[#202020] rounded-lg p-4 border border-slate-100 dark:border-stone-700/50" ]
+        [ Html.span [ class "text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase mb-1" ] [ Html.text label ]
+        , Html.div [ class "flex items-baseline gap-2 mt-1" ]
+            [ Html.span [ class "text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100" ] [ Html.text val ]
+            , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-500" ] [ Html.text sub ]
+            ]
         ]
 
 viewBarChart : String -> String -> List LessonCount -> List (CI.One LessonCount CI.Bar) -> Html Msg
@@ -182,8 +188,8 @@ viewBarChart title desc data hovering =
                     let rec = (CI.getData item) in
                     [ C.tooltip item [] [] 
                         [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
-                            [ Html.span [ class "font-bold" ] [ Html.text ("Level " ++ String.fromInt rec.lessonIdx) ]
-                            , Html.span [] [ Html.text (String.fromInt rec.count ++ " sessions") ]
+                            [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Level " ++ String.fromInt rec.lessonIdx) ]
+                            , Html.div [ class "font-bold text-amber-600 dark:text-amber-500" ] [ Html.text ("Total Attempts: " ++ String.fromInt rec.count) ]
                             ]
                         ]
                     ]
@@ -225,8 +231,8 @@ viewLetterChart title desc data hovering =
                     let rec = (CI.getData item) in
                     [ C.tooltip item [] [] 
                         [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
-                            [ Html.span [ class "font-bold text-lg" ] [ Html.text rec.letter ]
-                            , Html.span [] [ Html.text (String.fromInt rec.count ++ " sessions") ]
+                            [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Letter: " ++ rec.letter) ]
+                            , Html.div [ class "font-bold text-rose-600 dark:text-rose-500" ] [ Html.text ("Struggled: " ++ String.fromInt rec.count ++ " times") ]
                             ]
                         ]
                     ]
