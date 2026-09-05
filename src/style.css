@@ -27,17 +27,3 @@ body {
   animation: none;
   mix-blend-mode: normal;
 }
-
-.transition-to-dark::view-transition-old(root) {
-  z-index: 1;
-}
-.transition-to-dark::view-transition-new(root) {
-  z-index: 9999;
-}
-
-.transition-to-light::view-transition-old(root) {
-  z-index: 9999;
-}
-.transition-to-light::view-transition-new(root) {
-  z-index: 1;
-}
