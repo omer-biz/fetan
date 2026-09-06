@@ -110,8 +110,9 @@ statsIcon =
 viewHeader : Model -> Html Msg
 viewHeader model =
     Html.header [ class "relative z-10 w-full flex justify-between items-center mb-8" ]
-        [ div [ class "flex items-center" ]
+        [ div [ class "flex flex-col" ]
             [ span [ class "text-xl font-medium tracking-[0.2em] text-slate-700 dark:text-slate-300 lowercase" ] [ text "qelm" ]
+            , span [ class "text-[10px] text-stone-400 dark:text-stone-500 tracking-widest uppercase" ] [ text "Amharic Typing Practice" ]
             ]
         , div [ class "flex items-center gap-4 md:gap-6" ]
             [ viewLayoutSelector model.layoutKind
