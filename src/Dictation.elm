@@ -39,5 +39,5 @@ genForLevel level =
                     Random.uniform x xs
     in
     randWord
-        |> Random.list 8
+        |> Random.list 16
         |> Random.map (String.join " ")
