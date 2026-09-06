@@ -171,7 +171,7 @@ port saveInfo : Encode.Value -> Cmd msg
 
 learningSequence : Array.Array String
 learningSequence =
-    Array.fromList [ "ሀ", "ለ", "በ", "መ", "ነ", "ረ", "ሰ", "ከ", "ቀ", "ወ", "ተ", "ቸ", "ዘ", "ደ", "ጀ", "አ", "ፈ", "ፐ", "ሐ", "ዐ", "ኀ", "ሸ", "የ", "ሠ", "ኘ", "ገ", "ጠ", "ጨ", "ጰ", "ጸ", "ፀ", "ዠ", "ኸ" ]
+    Array.fromList (List.map String.fromChar DictGen.learningSequence)
 
 
 getBaseLetterForLesson : Int -> String
