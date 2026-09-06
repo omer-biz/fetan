@@ -84,6 +84,9 @@ update msg model =
               }, Cmd.none )
 
         KeyUp keyEvent ->
+            if not model.keyboard.focusKeyBr then
+                ( model, Cmd.none )
+            else
             let
                 ( dict, layout, attemptResult ) =
                     updateDictation keyEvent.code keyboard.modifier model.currentLayout dictation
@@ -321,7 +324,7 @@ update msg model =
                         hintedToList
 
                     else
-                        keyboard.keys
+                        keyboard.keys |> List.map (\k -> if k.state == Hinted then { k | state = Released } else k)
             in
             ( { model
                 | time =
@@ -510,6 +513,9 @@ hintMod : List String -> Key -> Key
 hintMod hints key =
     if List.member key.code hints then
         { key | state = Hinted }
+
+    else if key.state == Hinted then
+        { key | state = Released }
 
     else
         key
