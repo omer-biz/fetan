@@ -246,10 +246,25 @@ update msg model =
                         | metrics = newMetrics
                         , history =
                             if model.time /= 0 then
-                                info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = (getCurrentLayoutData info).lessonIdx, errors = model.currentErrors, layoutKind = info.layoutKind } ]
+                                let
+                                    newRecord = { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = (getCurrentLayoutData info).lessonIdx, errors = model.currentErrors, layoutKind = info.layoutKind }
+                                    newHistory = info.history ++ [ newRecord ]
+                                in
+                                List.drop (max 0 (List.length newHistory - 200)) newHistory
 
                             else
                                 info.history
+                        , aggregate =
+                            if model.time /= 0 then
+                                { totalDuration = info.aggregate.totalDuration + model.time
+                                , totalSessions = info.aggregate.totalSessions + 1
+                                , topWpm = max info.aggregate.topWpm newMetrics.speed.new
+                                , topAccuracy = max info.aggregate.topAccuracy newMetrics.accuracy.new
+                                , sumWpm = info.aggregate.sumWpm + newMetrics.speed.new
+                                , sumAccuracy = info.aggregate.sumAccuracy + newMetrics.accuracy.new
+                                }
+                            else
+                                info.aggregate
                     }
               }
             , if model.time == 0 then

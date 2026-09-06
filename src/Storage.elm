@@ -4,7 +4,7 @@ import Dict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Types.Core exposing (..)
-import Stats exposing (LetterStat, SessionRecord)
+import Stats exposing (LetterStat, SessionRecord, AggregateStats)
 
 keyDecoder : Decode.Decoder KeyEvent
 keyDecoder =
@@ -62,6 +62,16 @@ layoutsDictDecoder : Decode.Decoder (Dict.Dict String LayoutData)
 layoutsDictDecoder =
     Decode.dict layoutDataDecoder
 
+aggregateDecoder : Decode.Decoder AggregateStats
+aggregateDecoder =
+    Decode.map6 AggregateStats
+        (Decode.field "totalDuration" Decode.float)
+        (Decode.field "totalSessions" Decode.int)
+        (Decode.field "topWpm" Decode.int)
+        (Decode.field "topAccuracy" Decode.int)
+        (Decode.field "sumWpm" Decode.int)
+        (Decode.field "sumAccuracy" Decode.int)
+
 infoDecoder : Decode.Decoder Info
 infoDecoder =
     Decode.value
@@ -102,8 +112,25 @@ infoDecoder =
                             Dict.singleton layoutKind (LayoutData legacyLessonIdx legacyDictationsCompleted legacyLetterStats)
                         else
                             layouts
+                            
+                    aggregate =
+                        Decode.decodeValue (Decode.field "aggregate" aggregateDecoder) val
+                            |> Result.withDefault
+                                (List.foldl
+                                    (\r acc ->
+                                        { totalDuration = acc.totalDuration + r.duration
+                                        , totalSessions = acc.totalSessions + 1
+                                        , topWpm = max acc.topWpm r.wpm
+                                        , topAccuracy = max acc.topAccuracy r.accuracy
+                                        , sumWpm = acc.sumWpm + r.wpm
+                                        , sumAccuracy = acc.sumAccuracy + r.accuracy
+                                        }
+                                    )
+                                    { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 }
+                                    history
+                                )
                 in
-                Decode.succeed (Info metrics layoutKind history migratedLayouts)
+                Decode.succeed (Info metrics layoutKind history migratedLayouts aggregate)
             )
 
 
@@ -150,6 +177,17 @@ encodeLayoutData data =
         , ( "letterStats", Encode.dict identity encodeLetterStat data.letterStats )
         ]
 
+encodeAggregate : AggregateStats -> Encode.Value
+encodeAggregate agg =
+    Encode.object
+        [ ( "totalDuration", Encode.float agg.totalDuration )
+        , ( "totalSessions", Encode.int agg.totalSessions )
+        , ( "topWpm", Encode.int agg.topWpm )
+        , ( "topAccuracy", Encode.int agg.topAccuracy )
+        , ( "sumWpm", Encode.int agg.sumWpm )
+        , ( "sumAccuracy", Encode.int agg.sumAccuracy )
+        ]
+
 encodeInfo : Info -> Encode.Value
 encodeInfo info =
     Encode.object
@@ -157,6 +195,7 @@ encodeInfo info =
         , ( "layoutKind", Encode.string info.layoutKind )
         , ( "layouts", Encode.dict identity encodeLayoutData info.layouts )
         , ( "history", Encode.list encodeSessionRecord info.history )
+        , ( "aggregate", encodeAggregate info.aggregate )
         ]
 
 

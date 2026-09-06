@@ -1,4 +1,4 @@
-module Stats exposing (SessionRecord, LetterStat, StatsData, viewStats)
+module Stats exposing (AggregateStats, SessionRecord, LetterStat, StatsData, viewStats)
 
 import Html exposing (Html)
 import Html.Attributes exposing (class)
@@ -9,6 +9,15 @@ import Chart as C
 import Chart.Attributes as CA
 import Chart.Events as CE
 import Chart.Item as CI
+
+type alias AggregateStats =
+    { totalDuration : Float
+    , totalSessions : Int
+    , topWpm : Int
+    , topAccuracy : Int
+    , sumWpm : Int
+    , sumAccuracy : Int
+    }
 
 type alias SessionRecord =
     { timestamp : Float
@@ -33,22 +42,19 @@ type alias StatsData =
     , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     , currentTime : Float
     , zone : Time.Zone
+    , aggregate : AggregateStats
     }
 
-viewAggregateStats : String -> List SessionRecord -> Html msg
-viewAggregateStats title history =
+viewAggregateStats : String -> AggregateStats -> Html msg
+viewAggregateStats title agg =
     let
-        totalDuration = List.map .duration history |> List.sum
-        totalLessons = List.length history
-        topSpeed = List.map .wpm history |> List.maximum |> Maybe.withDefault 0
-        avgSpeed = if totalLessons == 0 then 0 else (List.map .wpm history |> List.sum |> toFloat) / toFloat totalLessons
-        topAccuracy = List.map .accuracy history |> List.maximum |> Maybe.withDefault 0
-        avgAccuracy = if totalLessons == 0 then 0 else (List.map .accuracy history |> List.sum |> toFloat) / toFloat totalLessons
-
+        avgSpeed = if agg.totalSessions == 0 then 0 else toFloat agg.sumWpm / toFloat agg.totalSessions
+        avgAccuracy = if agg.totalSessions == 0 then 0 else toFloat agg.sumAccuracy / toFloat agg.totalSessions
+        
         -- format time (e.g. 00:15:25)
-        h = floor (totalDuration / 3600)
-        m = floor (totalDuration / 60) |> modBy 60
-        s = floor totalDuration |> modBy 60
+        h = floor (agg.totalDuration / 3600)
+        m = floor (agg.totalDuration / 60) |> modBy 60
+        s = floor agg.totalDuration |> modBy 60
         pad n = if n < 10 then "0" ++ String.fromInt n else String.fromInt n
         timeStr = pad h ++ ":" ++ pad m ++ ":" ++ pad s
 
@@ -74,9 +80,9 @@ viewAggregateStats title history =
         [ Html.h2 [ class "text-xl font-bold tracking-tight text-slate-800 dark:text-slate-100 mb-2" ] [ Html.text title ]
         , Html.div [ class "grid grid-cols-2 gap-4" ]
             [ statCard "Time" timeStr ""
-            , statCard "Sessions" (String.fromInt totalLessons) ""
-            , statCard "Top Speed" (String.fromInt topSpeed) ("avg " ++ formatFloat avgSpeed ++ " wpm")
-            , statCard "Accuracy" (String.fromInt topAccuracy ++ "%") ("avg " ++ formatFloat avgAccuracy ++ "%")
+            , statCard "Sessions" (String.fromInt agg.totalSessions) ""
+            , statCard "Top Speed" (String.fromInt agg.topWpm) ("avg " ++ formatFloat avgSpeed ++ " wpm")
+            , statCard "Accuracy" (String.fromInt agg.topAccuracy ++ "%") ("avg " ++ formatFloat avgAccuracy ++ "%")
             ]
         ]
 
@@ -87,22 +93,31 @@ viewStats data onHover onHoverMastery =
             [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ Html.text "Performance Stats" ]
             ]
         , Html.div [ class "flex flex-col md:flex-row gap-8 w-full" ]
-            [ viewAggregateStats "All Time Statistics" data.history
+            [ viewAggregateStats "All Time Statistics" data.aggregate
             , viewAggregateStats "Statistics for Today" 
                 (let
                     currentPosix = Time.millisToPosix (round data.currentTime)
                     cY = Time.toYear data.zone currentPosix
                     cM = Time.toMonth data.zone currentPosix
                     cD = Time.toDay data.zone currentPosix
+                    
+                    isToday r =
+                        let
+                            rPosix = Time.millisToPosix (round r.timestamp)
+                        in
+                        Time.toYear data.zone rPosix == cY && Time.toMonth data.zone rPosix == cM && Time.toDay data.zone rPosix == cD
+
+                    filteredHistory = List.filter isToday data.history
                  in
-                 List.filter (\r -> 
-                     let
-                         rPosix = Time.millisToPosix (round r.timestamp)
-                     in
-                     Time.toYear data.zone rPosix == cY &&
-                     Time.toMonth data.zone rPosix == cM &&
-                     Time.toDay data.zone rPosix == cD
-                 ) data.history)
+                 List.foldl (\r acc -> 
+                    { totalDuration = acc.totalDuration + r.duration
+                    , totalSessions = acc.totalSessions + 1
+                    , topWpm = max acc.topWpm r.wpm
+                    , topAccuracy = max acc.topAccuracy r.accuracy
+                    , sumWpm = acc.sumWpm + r.wpm
+                    , sumAccuracy = acc.sumAccuracy + r.accuracy
+                    }
+                 ) { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 } filteredHistory)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.div [ class "flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4" ]

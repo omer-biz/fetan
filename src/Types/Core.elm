@@ -71,6 +71,7 @@ type alias Info =
     , layoutKind : String
     , history : List SessionRecord
     , layouts : Dict.Dict String LayoutData
+    , aggregate : Stats.AggregateStats
     }
 
 

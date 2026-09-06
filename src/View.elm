@@ -148,7 +148,7 @@ view model =
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
-                    Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime, zone = model.zone } OnHoverStats OnHoverMastery
+                    Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime, zone = model.zone, aggregate = model.info.aggregate } OnHoverStats OnHoverMastery
 
                   else if model.route == CommunityRoute then
                     Html.map CommunityMsg (Community.view model.communityData)
