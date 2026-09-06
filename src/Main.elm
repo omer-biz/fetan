@@ -62,7 +62,7 @@ init flags url navKey =
                 ++ [ ctrlLeft, altLeft, space, altRight, ctrlRight ]
 
         keyboard =
-            Keyboard False NoModifier withModKeys
+            Keyboard True NoModifier withModKeys
 
         nowTime =
             case Decode.decodeValue (Decode.field "now" Decode.float) flags of

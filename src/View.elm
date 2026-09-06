@@ -460,6 +460,7 @@ viewDictation isFocused dict =
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0
+        , autofocus True
         , onKeyDownPreventDefault
         , onKeyUpPreventDefault
         ]
