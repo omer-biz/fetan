@@ -164,13 +164,31 @@ import confetti from 'canvas-confetti';
     }
 
     if (app.ports && app.ports.triggerLevelUp) {
-      app.ports.triggerLevelUp.subscribe((letter: string) => {
-        console.log("[App] Level up! Unlocked:", letter);
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#10b981', '#fbbf24', '#f43f5e']
+      app.ports.triggerLevelUp.subscribe((lessonIdxStr: string) => {
+        console.log("[App] Level up! Unlocked index:", lessonIdxStr);
+        requestAnimationFrame(() => {
+          const el = document.getElementById("progression-letter-" + lessonIdxStr);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+            
+            confetti({
+              particleCount: 60,
+              spread: 55,
+              origin: { x, y },
+              colors: ['#10b981', '#fbbf24', '#f43f5e'],
+              zIndex: 9999
+            });
+          } else {
+            confetti({
+              particleCount: 60,
+              spread: 55,
+              origin: { y: 0.2 },
+              colors: ['#10b981', '#fbbf24', '#f43f5e'],
+              zIndex: 9999
+            });
+          }
         });
       });
     }

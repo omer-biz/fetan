@@ -14,7 +14,7 @@ import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
 import Html exposing (Html, a, div, main_, option, p, select, span, table, tbody, td, text, tr)
-import Html.Attributes exposing (class, href, selected, tabindex, target, value)
+import Html.Attributes exposing (class, href, selected, tabindex, target, value, id)
 import Html.Events exposing (onBlur, onFocus, onInput, preventDefaultOn)
 import Html.Keyed as Keyed
 import Json.Decode as Decode
@@ -1042,7 +1042,7 @@ viewProgression idx justLeveledUp =
                         else
                             "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
-                span [ class ("transition-all duration-300 transform " ++ stateClasses) ]
+                span [ id ("progression-letter-" ++ String.fromInt letterIdx), class ("transition-all duration-300 transform " ++ stateClasses) ]
                     [ text (String.fromChar c) ]
             )
             DictGen.learningSequence
