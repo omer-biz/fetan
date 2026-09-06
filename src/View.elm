@@ -156,7 +156,7 @@ view model =
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info model.justLeveledUp
-                        , viewDictation model.dictation
+                        , viewDictation model.keyboard.focusKeyBr model.dictation
                         , viewKeyBoard model.keyboard
                         ]
                 ]
@@ -373,8 +373,8 @@ viewMetrics info =
         ]
 
 
-viewDictation : Dictation -> Html msg
-viewDictation dict =
+viewDictation : Bool -> Dictation -> Html Msg
+viewDictation isFocused dict =
     let
         currentIndex =
             List.length dict.prev
@@ -446,9 +446,24 @@ viewDictation dict =
                 ]
             )
     in
+    let
+        isfocused =
+            if not isFocused then
+                div [ class "absolute z-20 inset-0 bg-stone-100/40 dark:bg-stone-900/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer rounded-xl transition-all duration-300" ]
+                    [ span [ class "text-lg md:text-xl font-medium text-stone-700 dark:text-stone-300 tracking-wide px-6 py-3 bg-white/80 dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.06)] dark:shadow-none border border-stone-200/50 dark:border-stone-700/50" ] [ text "Click to start" ] ]
+
+            else
+                text ""
+    in
     Keyed.node "div"
-        [ class "whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none " ]
-        (List.indexedMap viewLetter allLetters)
+        [ class "relative whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none outline-none focus:outline-none" 
+        , onFocus FocusKeyBr
+        , onBlur BlurKeyBr
+        , tabindex 0
+        , keyDown NoOp
+        , keyUp NoOp
+        ]
+        ( ("focus-overlay", isfocused) :: List.indexedMap viewLetter allLetters )
 
 
 keyDown : msg -> Html.Attribute msg
@@ -466,14 +481,6 @@ keyUp msg =
 viewKeyBoard : Keyboard -> Html Msg
 viewKeyBoard keyboard =
     let
-        isfocused =
-            if keyboard.focusKeyBr == False then
-                div [ class "absolute z-20 inset-0 bg-stone-100/40 dark:bg-stone-900/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer rounded-xl transition-all duration-300" ]
-                    [ span [ class "text-lg md:text-xl font-medium text-stone-700 dark:text-stone-300 tracking-wide px-6 py-3 bg-white/80 dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.06)] dark:shadow-none border border-stone-200/50 dark:border-stone-700/50" ] [ text "Click to start" ] ]
-
-            else
-                text ""
-
         firstRow =
             List.take 14 keyboard.keys
                 |> List.map (viewKey keyboard.modifier)
@@ -499,18 +506,14 @@ viewKeyBoard keyboard =
     in
     div [ class "w-full overflow-hidden flex justify-center pb-8 -mb-8" ]
         [ div
-            [ class <| "border-2 p-3 sm:p-4 md:p-6 rounded-xl border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 relative transition-all duration-300 transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] lg:scale-100"
-            , onFocus FocusKeyBr
-            , onBlur BlurKeyBr
-            , tabindex 0 -- Helps make a div focusable and blurable.
-            , keyDown NoOp
-            , keyUp NoOp
+            [ class <| "border-2 p-3 sm:p-4 md:p-6 rounded-xl border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 transition-all duration-300 transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] lg:scale-100"
             ]
-            [ firstRow
-            , secondRow
-            , thirdRow
-            , fourthRow
-            , isfocused
+            [ div [ class "flex flex-col gap-1 sm:gap-2" ]
+                [ firstRow
+                , secondRow
+                , thirdRow
+                , fourthRow
+                ]
             ]
         ]
 
