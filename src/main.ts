@@ -2,6 +2,7 @@ import "./style.css";
 import { Elm } from "./Main.elm";
 
 import { get, set } from 'idb-keyval';
+import confetti from 'canvas-confetti';
 
 (async function initApp() {
   // Migrate legacy localStorage data to IndexedDB
@@ -162,8 +163,19 @@ import { get, set } from 'idb-keyval';
       });
     }
 
-})();
+    if (app.ports && app.ports.triggerLevelUp) {
+      app.ports.triggerLevelUp.subscribe((letter: string) => {
+        console.log("[App] Level up! Unlocked:", letter);
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10b981', '#fbbf24', '#f43f5e']
+        });
+      });
+    }
 
+})();
 
 // Smooth animated caret
 let caretElement: HTMLElement | null = null;

@@ -24,6 +24,8 @@ import Random
 import Svg exposing (path, svg)
 import Svg.Attributes as SvgAttr
 import Time
+import Process
+import Task
 import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 
@@ -51,6 +53,7 @@ type alias Model =
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
     , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     , communityData : Community.Model
+    , justLeveledUp : Bool
     }
 
 
@@ -158,6 +161,7 @@ type Msg
     | GotCommunityStats Encode.Value
     | OnHoverStats (List (CI.One { index : Float, record : SessionRecord } CI.Dot))
     | OnHoverMastery (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar))
+    | ClearLevelUp
 
 
 port saveInfo : Encode.Value -> Cmd msg
@@ -362,6 +366,8 @@ update msg model =
                     , nextCompleted = finalCompleted
                     , nextStats = updatedStats
                     , newLastSuccessTime = updatedTime
+                    , didLevelUp = (finalLessonIdx > info.lessonIdx)
+                    , nextLetter = getBaseLetterForLesson finalLessonIdx
                     }
             in
             ( { model
@@ -643,6 +649,9 @@ update msg model =
         GotCommunityStats val ->
             ( { model | communityData = Community.handleReceiveStats val model.communityData }, Cmd.none )
 
+        ClearLevelUp ->
+            ( { model | justLeveledUp = False }, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
 
@@ -883,7 +892,7 @@ view model =
                     Html.map CommunityMsg (Community.view model.communityData)
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
-                        [ viewInfo model.info
+                        [ viewInfo model.info model.justLeveledUp
                         , viewDictation model.dictation
                         , viewKeyBoard model.keyboard
                         ]
@@ -1000,18 +1009,18 @@ layoutInfo kind =
             )
 
 
-viewInfo : Info -> Html Msg
-viewInfo info =
+viewInfo : Info -> Bool -> Html Msg
+viewInfo info justLeveledUp =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
         [ viewMetrics info
         , div [ class "mt-4 w-full flex justify-center" ]
-            [ viewProgression info.lessonIdx
+            [ viewProgression info.lessonIdx justLeveledUp
             ]
         ]
 
 
-viewProgression : Int -> Html msg
-viewProgression idx =
+viewProgression : Int -> Bool -> Html msg
+viewProgression idx justLeveledUp =
     let
         effIdx =
             clamp 1 33 idx
@@ -1026,11 +1035,14 @@ viewProgression idx =
                         if letterIdx < effIdx then
                             "text-stone-800 dark:text-stone-200 font-medium"
                         else if letterIdx == effIdx then
-                            "text-slate-600 dark:text-slate-400 font-bold border-b-2 border-slate-500/50 pb-0.5"
+                            if justLeveledUp then
+                                "text-emerald-500 dark:text-emerald-400 font-bold border-b-2 border-emerald-500 pb-0.5 animate-bounce scale-125 shadow-emerald-500/50"
+                            else
+                                "text-slate-600 dark:text-slate-400 font-bold border-b-2 border-slate-500/50 pb-0.5"
                         else
                             "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
-                span [ class ("transition-colors duration-300 " ++ stateClasses) ]
+                span [ class ("transition-all duration-300 transform " ++ stateClasses) ]
                     [ text (String.fromChar c) ]
             )
             DictGen.learningSequence
@@ -1612,6 +1624,7 @@ init flags url navKey =
             , hoveringStats = []
             , hoveringMastery = []
             , communityData = Community.init
+            , justLeveledUp = False
             }
 
         dictation =
@@ -1735,5 +1748,6 @@ main =
 
 port saveTheme : String -> Cmd msg
 port trackEvent : Encode.Value -> Cmd msg
+port triggerLevelUp : String -> Cmd msg
 port fetchCommunityStats : () -> Cmd msg
 port receiveCommunityStats : (Encode.Value -> msg) -> Sub msg
