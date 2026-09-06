@@ -56,10 +56,16 @@ update msg model =
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown keyEvent ->
-            if not model.keyboard.focusKeyBr then
+            if not model.keyboard.focusKeyBr || model.info.onboardingStep == 0 then
                 ( model, Cmd.none )
             else
             let
+                infoAfterOnboarding =
+                    if model.info.onboardingStep == 1 then
+                        { info | onboardingStep = 2 }
+                    else
+                        model.info
+
                 isFirstKey = not model.started
                 
                 newLastSuccessTime =
@@ -81,10 +87,13 @@ update msg model =
                 , started = True
                 , lastSuccessTime = newLastSuccessTime
                 , sessionStartTime = newSessionStartTime 
-              }, Cmd.none )
+                , info = infoAfterOnboarding
+              }
+            , if model.info.onboardingStep == 1 then Ports.saveInfo (Storage.encodeInfo infoAfterOnboarding) else Cmd.none 
+            )
 
         KeyUp keyEvent ->
-            if not model.keyboard.focusKeyBr then
+            if not model.keyboard.focusKeyBr || model.info.onboardingStep == 0 then
                 ( model, Cmd.none )
             else
             let
@@ -271,6 +280,16 @@ update msg model =
                                 }
                             else
                                 info.aggregate
+                        , onboardingStep =
+                            if model.time /= 0 then
+                                if info.onboardingStep == 2 then
+                                    3
+                                else if info.onboardingStep == 3 then
+                                    4
+                                else
+                                    info.onboardingStep
+                            else
+                                info.onboardingStep
                     }
               }
             , if model.time == 0 then
@@ -426,6 +445,44 @@ update msg model =
                 , DictGen.genForLevel newLessonIdx |> Random.generate NewDict
                 ]
             )
+
+        CompleteLayoutSelection kind ->
+            let
+                newLayout =
+                    Layout.initLayout kind
+
+                keys =
+                    keyboard.keys
+                        |> List.map
+                            (\k ->
+                                if List.member k.code modifierKeys then
+                                    k
+                                else
+                                    { k | view = Layout.render keyboard.modifier k.code newLayout }
+                            )
+
+                newKeyboard =
+                    { keyboard | keys = keys }
+
+                newInfo =
+                    { info | layoutKind = layoutKindToString kind, onboardingStep = 1 }
+
+                newModel =
+                    { model | info = newInfo, layoutKind = kind, currentLayout = newLayout, keyboard = newKeyboard }
+            in
+            ( newModel, Ports.saveInfo (Storage.encodeInfo newInfo) )
+            
+        SkipOnboarding ->
+            let
+                newInfo = { info | onboardingStep = 4 }
+            in
+            ( { model | info = newInfo }, Ports.saveInfo (Storage.encodeInfo newInfo) )
+
+        DismissOnboarding ->
+            let
+                newInfo = { info | onboardingStep = info.onboardingStep + 1 }
+            in
+            ( { model | info = newInfo }, Ports.saveInfo (Storage.encodeInfo newInfo) )
 
         ToggleTheme ->
             let

@@ -157,9 +157,10 @@ view model =
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info model.justLeveledUp
-                        , viewDictation model.keyboard.focusKeyBr model.dictation
+                        , viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
                         , viewKeyBoard model.keyboard
                         ]
+                , if model.info.onboardingStep == 0 then viewOnboardingOverlay else text ""
                 ]
             , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
                 [ text "an open-source project | made by "
@@ -275,10 +276,14 @@ layoutInfo kind =
 
 viewInfo : Info -> Bool -> Html Msg
 viewInfo info justLeveledUp =
-    div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
-        [ viewMetrics info
-        , div [ class "mt-4 w-full flex justify-center" ]
+    div [ class "flex flex-col items-center mb-8 w-full max-w-[800px] relative" ]
+        [ div [ class "relative w-full" ] 
+            [ viewMetrics info 
+            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "-bottom-20 left-1/2 -translate-x-1/2" else text ""
+            ]
+        , div [ class "mt-4 w-full flex justify-center relative" ]
             [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
+            , if info.onboardingStep == 2 then viewOnboardingTooltip 2 "-bottom-20 left-1/2 -translate-x-1/2" else text ""
             ]
         ]
 
@@ -374,8 +379,8 @@ viewMetrics info =
         ]
 
 
-viewDictation : Bool -> Dictation -> Html Msg
-viewDictation isFocused dict =
+viewDictation : Bool -> Dictation -> Int -> Html Msg
+viewDictation isFocused dict onboardingStep =
     let
         currentIndex =
             List.length dict.prev
@@ -461,11 +466,13 @@ viewDictation isFocused dict =
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0
-        , autofocus True
+        , autofocus (onboardingStep /= 0)
         , onKeyDownPreventDefault
         , onKeyUpPreventDefault
         ]
-        ( ("focus-overlay", isfocused) :: List.indexedMap viewLetter allLetters )
+        ( ("focus-overlay", isfocused) 
+        :: ("onboarding-1", if onboardingStep == 1 then viewOnboardingTooltip 1 "-bottom-16 left-1/2 -translate-x-1/2" else text "") 
+        :: List.indexedMap viewLetter allLetters )
 
 
 dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
@@ -759,3 +766,66 @@ specialKeys =
         , ( "Backslash", "flex-grow" )
         ]
 
+
+viewOnboardingTooltip : Int -> String -> Html Msg
+viewOnboardingTooltip step position =
+    div [ class ("absolute z-30 " ++ position) ]
+        [ div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
+            [ p [ class "mb-3" ] [ text (onboardingText step) ]
+            , button
+                [ onClick DismissOnboarding
+                , class "px-3 py-1 bg-slate-600 hover:bg-slate-500 dark:bg-slate-300 dark:hover:bg-slate-400 rounded text-xs font-medium text-white dark:text-stone-900 transition-colors"
+                ]
+                [ text "Got it" ]
+            ]
+        ]
+
+onboardingText : Int -> String
+onboardingText step =
+    case step of
+        1 ->
+            "Type the Latin keys, and they'll transform into Amharic characters. Try it!"
+
+        2 ->
+            "Your progress — Each Amharic character family unlocks as your mastery improves. The highlighted character is your current lesson."
+
+        3 ->
+            "Track your improvement — Speed, accuracy, and mastery update after each lesson. Visit the Stats page for more details."
+
+        _ ->
+            ""
+
+viewOnboardingOverlay : Html Msg
+viewOnboardingOverlay =
+    div [ class "fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm" ]
+        [ div [ class "bg-white dark:bg-stone-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border border-stone-200 dark:border-stone-700 animate-tooltip-enter" ]
+            [ h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
+            , p [ class "text-stone-500 dark:text-stone-400 mb-8 text-center" ] [ text "Choose your typing layout to begin." ]
+            
+            , div [ class "space-y-4 mb-8" ]
+                [ viewLayoutOption Layout.GeezIME "GeezIME (Recommended)" "Type Latin sequences (like 'he', 'hu') to form Ethiopic characters." True
+                , viewLayoutOption Layout.SilPowerG "SIL Power-G" "Phonetic mapping based on sound." False
+                , viewLayoutOption Layout.PowerGeez "PowerGeez" "Legacy typing system." False
+                ]
+                
+            , div [ class "flex justify-center" ]
+                [ button 
+                    [ onClick SkipOnboarding
+                    , class "text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 underline underline-offset-4"
+                    ] 
+                    [ text "I already know how to use Qelm (Skip Onboarding)" ]
+                ]
+            ]
+        ]
+
+viewLayoutOption : Layout.LayoutKind -> String -> String -> Bool -> Html Msg
+viewLayoutOption kind title desc recommended =
+    button 
+        [ onClick (CompleteLayoutSelection kind)
+        , class ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex flex-col gap-1 " ++ (if recommended then "border-emerald-500/50 hover:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" else "border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50"))
+        ]
+        [ div [ class "flex items-center gap-2" ]
+            [ span [ class ("font-semibold text-lg " ++ (if recommended then "text-emerald-700 dark:text-emerald-400" else "text-stone-700 dark:text-stone-300")) ] [ text title ]
+            ]
+        , span [ class "text-sm text-stone-500 dark:text-stone-400" ] [ text desc ]
+        ]

@@ -31,3 +31,6 @@ type Msg
     | OnHoverMastery (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar))
     | ClearLevelUp
     | GotTimeZone Time.Zone
+    | CompleteLayoutSelection Layout.LayoutKind
+    | SkipOnboarding
+    | DismissOnboarding

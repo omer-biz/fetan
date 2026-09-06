@@ -43,6 +43,7 @@ sampleInfo =
     , history = [ sampleSession ]
     , layouts = Dict.fromList [ ( "GeezIME", sampleLayoutData ) ]
     , aggregate = { totalDuration = 15.0, totalSessions = 1, topWpm = 40, topAccuracy = 98, sumWpm = 40, sumAccuracy = 98 }
+    , onboardingStep = 4
     }
 
 suite : Test

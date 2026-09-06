@@ -129,8 +129,12 @@ infoDecoder =
                                     { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 }
                                     history
                                 )
+
+                    onboardingStep =
+                        Decode.decodeValue (Decode.field "onboardingStep" Decode.int) val
+                            |> Result.withDefault 0
                 in
-                Decode.succeed (Info metrics layoutKind history migratedLayouts aggregate)
+                Decode.succeed (Info metrics layoutKind history migratedLayouts aggregate onboardingStep)
             )
 
 
@@ -196,6 +200,7 @@ encodeInfo info =
         , ( "layouts", Encode.dict identity encodeLayoutData info.layouts )
         , ( "history", Encode.list encodeSessionRecord info.history )
         , ( "aggregate", encodeAggregate info.aggregate )
+        , ( "onboardingStep", Encode.int info.onboardingStep )
         ]
 
 

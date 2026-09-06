@@ -39,7 +39,7 @@ init flags url navKey =
                             m
 
                         Err _ ->
-                            Info initMetric "GeezIME" [] Dict.empty { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 }
+                            Info initMetric "GeezIME" [] Dict.empty { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 } 0
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
