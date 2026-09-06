@@ -70,6 +70,20 @@ viewThemeToggle theme =
         [ icon ]
 
 
+closeIcon : Html msg
+closeIcon =
+    Svg.svg
+        [ SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        , SvgAttr.class "w-6 h-6"
+        ]
+        [ Svg.path [ SvgAttr.d "M6 18L18 6M6 6l12 12" ] []
+        ]
+
 communityIcon : Html msg
 communityIcon =
     Svg.svg
@@ -798,22 +812,20 @@ onboardingText step =
 viewOnboardingOverlay : Html Msg
 viewOnboardingOverlay =
     div [ class "fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm" ]
-        [ div [ class "bg-white dark:bg-stone-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border border-stone-200 dark:border-stone-700 animate-tooltip-enter" ]
-            [ h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
+        [ div [ class "relative bg-white dark:bg-stone-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border border-stone-200 dark:border-stone-700 animate-tooltip-enter" ]
+            [ button 
+                [ onClick SkipOnboarding
+                , class "absolute top-4 right-4 text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700/50"
+                , Html.Attributes.title "Skip onboarding"
+                ]
+                [ closeIcon ]
+            , h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
             , p [ class "text-stone-500 dark:text-stone-400 mb-8 text-center" ] [ text "Choose your typing layout to begin." ]
             
-            , div [ class "space-y-4 mb-8" ]
+            , div [ class "space-y-4" ]
                 [ viewLayoutOption Layout.GeezIME "GeezIME (Recommended)" "Type Latin sequences (like 'he', 'hu') to form Ethiopic characters." True
                 , viewLayoutOption Layout.SilPowerG "SIL Power-G" "Phonetic mapping based on sound." False
                 , viewLayoutOption Layout.PowerGeez "PowerGeez" "Legacy typing system." False
-                ]
-                
-            , div [ class "flex justify-center" ]
-                [ button 
-                    [ onClick SkipOnboarding
-                    , class "text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 underline underline-offset-4"
-                    ] 
-                    [ text "I already know how to use Qelm (Skip Onboarding)" ]
                 ]
             ]
         ]
