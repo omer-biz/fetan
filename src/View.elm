@@ -822,10 +822,18 @@ viewOnboardingOverlay =
             , h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
             , p [ class "text-stone-500 dark:text-stone-400 mb-8 text-center" ] [ text "Choose your typing layout to begin." ]
             
-            , div [ class "space-y-4" ]
+            , div [ class "space-y-4 mb-8" ]
                 [ viewLayoutOption Layout.GeezIME "GeezIME (Recommended)" "Type Latin sequences (like 'he', 'hu') to form Ethiopic characters." True
                 , viewLayoutOption Layout.SilPowerG "SIL Power-G" "Phonetic mapping based on sound." False
                 , viewLayoutOption Layout.PowerGeez "PowerGeez" "Legacy typing system." False
+                ]
+                
+            , div [ class "flex justify-center" ]
+                [ button 
+                    [ onClick SkipOnboarding
+                    , class "text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 underline underline-offset-4"
+                    ] 
+                    [ text "I already know how to use Qelm (Skip Onboarding)" ]
                 ]
             ]
         ]
