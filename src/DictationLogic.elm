@@ -183,3 +183,22 @@ getBaseLetterForLesson idx =
             Array.fromList (List.map String.fromChar DictGen.learningSequence)
     in
     Array.get (idx - 1) learningSequence |> Maybe.withDefault "ሀ"
+
+getCurrentLayoutData : Info -> LayoutData
+getCurrentLayoutData info =
+    Dict.get info.layoutKind info.layouts
+        |> Maybe.withDefault (LayoutData 4 0 Dict.empty)
+
+updateCurrentLayoutData : (LayoutData -> LayoutData) -> Info -> Info
+updateCurrentLayoutData updater info =
+    let
+        current =
+            getCurrentLayoutData info
+        
+        updated =
+            updater current
+            
+        newLayouts =
+            Dict.insert info.layoutKind updated info.layouts
+    in
+    { info | layouts = newLayouts }

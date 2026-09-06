@@ -38,7 +38,7 @@ init flags url navKey =
                             m
 
                         Err _ ->
-                            Info initMetric 4 "GeezIME" 0 Dict.empty []
+                            Info initMetric "GeezIME" [] Dict.empty
 
         curLayoutKind =
             layoutKindFromString info.layoutKind
@@ -101,7 +101,7 @@ init flags url navKey =
             }
 
         dictation =
-            DictGen.genForLevel info.lessonIdx
+            DictGen.genForLevel (getCurrentLayoutData info).lessonIdx
     in
     ( model
     , Cmd.batch

@@ -86,22 +86,22 @@ update msg model =
                             Maybe.map (\curr -> String.fromChar curr.letter) dictation.current |> Maybe.withDefault ""
 
                         oldStat =
-                            Dict.get targetLetter info.letterStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+                            Dict.get targetLetter (getCurrentLayoutData info).letterStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
 
                         ( updatedStats, updatedTime ) =
                             case attemptResult of
                                 NoOpResult ->
-                                    ( info.letterStats, model.lastSuccessTime )
+                                    ( (getCurrentLayoutData info).letterStats, model.lastSuccessTime )
 
                                 WasPartial ->
-                                    ( info.letterStats, model.lastSuccessTime )
+                                    ( (getCurrentLayoutData info).letterStats, model.lastSuccessTime )
 
                                 WasWrong ->
                                     let
                                         newStat =
                                             { oldStat | errorEma = 0.1 * 1.0 + 0.9 * oldStat.errorEma }
                                     in
-                                    ( Dict.insert targetLetter newStat info.letterStats, model.lastSuccessTime )
+                                    ( Dict.insert targetLetter newStat (getCurrentLayoutData info).letterStats, model.lastSuccessTime )
 
                                 WasCorrect ->
                                     let
@@ -119,7 +119,7 @@ update msg model =
                                                     , errorEma = 0.9 * oldStat.errorEma
                                                 }
                                     in
-                                    ( Dict.insert targetLetter newStat info.letterStats, keyEvent.timeStamp )
+                                    ( Dict.insert targetLetter newStat (getCurrentLayoutData info).letterStats, keyEvent.timeStamp )
 
                         isFinished =
                             dict.current == Nothing
@@ -128,7 +128,7 @@ update msg model =
                             if isFinished then
                                 let
                                     baseLetter =
-                                        getBaseLetterForLesson info.lessonIdx
+                                        getBaseLetterForLesson (getCurrentLayoutData info).lessonIdx
 
                                     stat =
                                         getFamilyStats baseLetter updatedStats
@@ -142,20 +142,20 @@ update msg model =
                                     conf =
                                         0.5 + (accuracyScore * 0.4) + (speedScore * 0.1)
                                 in
-                                if stat.count >= 15 && conf > 0.85 && info.lessonIdx < 34 then
-                                    ( info.lessonIdx + 1, 0 )
+                                if stat.count >= 15 && conf > 0.85 && (getCurrentLayoutData info).lessonIdx < 34 then
+                                    ( (getCurrentLayoutData info).lessonIdx + 1, 0 )
 
                                 else
-                                    ( info.lessonIdx, info.dictationsCompleted + 1 )
+                                    ( (getCurrentLayoutData info).lessonIdx, (getCurrentLayoutData info).dictationsCompleted + 1 )
 
                             else
-                                ( info.lessonIdx, info.dictationsCompleted )
+                                ( (getCurrentLayoutData info).lessonIdx, (getCurrentLayoutData info).dictationsCompleted )
                     in
                     { nextLessonIdx = finalLessonIdx
                     , nextCompleted = finalCompleted
                     , nextStats = updatedStats
                     , newLastSuccessTime = updatedTime
-                    , didLevelUp = finalLessonIdx > info.lessonIdx
+                    , didLevelUp = finalLessonIdx > (getCurrentLayoutData info).lessonIdx
                     , nextLetter = getBaseLetterForLesson finalLessonIdx
                     }
             in
@@ -164,11 +164,15 @@ update msg model =
                 , currentLayout = layout
                 , dictation = dict
                 , info =
-                    { info
-                        | lessonIdx = updates.nextLessonIdx
-                        , dictationsCompleted = updates.nextCompleted
-                        , letterStats = updates.nextStats
-                    }
+                    updateCurrentLayoutData
+                        (\layoutData ->
+                            { layoutData
+                                | lessonIdx = updates.nextLessonIdx
+                                , dictationsCompleted = updates.nextCompleted
+                                , letterStats = updates.nextStats
+                            }
+                        )
+                        info
                 , lastSuccessTime = updates.newLastSuccessTime
                 , currentErrors = newErrors
                 , justLeveledUp = if updates.didLevelUp then True else model.justLeveledUp
@@ -228,7 +232,7 @@ update msg model =
                         | metrics = newMetrics
                         , history =
                             if model.time /= 0 then
-                                info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = info.lessonIdx, errors = model.currentErrors } ]
+                                info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = (getCurrentLayoutData info).lessonIdx, errors = model.currentErrors, layoutKind = info.layoutKind } ]
 
                             else
                                 info.history
@@ -240,7 +244,7 @@ update msg model =
               else
                 let
                     slowestLetter =
-                        Dict.toList info.letterStats
+                        Dict.toList (getCurrentLayoutData info).letterStats
                             |> List.filter (\( _, s ) -> s.count > 0)
                             |> List.sortBy (\( _, s ) -> -s.latencyEma)
                             |> List.head
@@ -252,8 +256,9 @@ update msg model =
                             [ ( "wpm", Encode.int newMetrics.speed.new )
                             , ( "accuracy", Encode.int newMetrics.accuracy.new )
                             , ( "duration", Encode.float model.time )
-                            , ( "lessonIdx", Encode.int info.lessonIdx )
+                            , ( "lessonIdx", Encode.int (getCurrentLayoutData info).lessonIdx )
                             , ( "slowestLetter", Encode.string slowestLetter )
+                            , ( "layoutKind", Encode.string info.layoutKind )
                             ]
                 in
                 Cmd.batch
@@ -371,6 +376,9 @@ update msg model =
 
                 newInfo =
                     { info | layoutKind = layoutKindToString kind }
+                    
+                newLessonIdx =
+                    (getCurrentLayoutData newInfo).lessonIdx
             in
             ( { model
                 | layoutKind = kind
@@ -378,7 +386,10 @@ update msg model =
                 , keyboard = { keyboard | keys = keys }
                 , info = newInfo
               }
-            , Ports.saveInfo <| Storage.encodeInfo newInfo
+            , Cmd.batch
+                [ Ports.saveInfo <| Storage.encodeInfo newInfo
+                , DictGen.genForLevel newLessonIdx |> Random.generate NewDict
+                ]
             )
 
         ToggleTheme ->

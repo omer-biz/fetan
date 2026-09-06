@@ -6,7 +6,7 @@ import Json.Decode as Decode
 import Stats exposing (LetterStat, SessionRecord)
 import Storage exposing (..)
 import Test exposing (..)
-import Types.Core exposing (Info, Metrics)
+import Types.Core exposing (Info, Metrics, LayoutData)
 
 sampleLetterStat : LetterStat
 sampleLetterStat =
@@ -20,6 +20,7 @@ sampleSession =
     , lessonIdx = 5
     , errors = []
     , duration = 15.0
+    , layoutKind = "GeezIME"
     }
 
 sampleMetrics : Metrics
@@ -28,14 +29,19 @@ sampleMetrics =
     , accuracy = { old = 95, new = 98 }
     }
 
+sampleLayoutData : LayoutData
+sampleLayoutData =
+    { lessonIdx = 5
+    , dictationsCompleted = 100
+    , letterStats = Dict.fromList [ ( "ሀ", sampleLetterStat ) ]
+    }
+
 sampleInfo : Info
 sampleInfo =
-    { lessonIdx = 5
+    { metrics = sampleMetrics
     , layoutKind = "GeezIME"
-    , dictationsCompleted = 100
-    , metrics = sampleMetrics
-    , letterStats = Dict.fromList [ ( "ሀ", sampleLetterStat ) ]
     , history = [ sampleSession ]
+    , layouts = Dict.fromList [ ( "GeezIME", sampleLayoutData ) ]
     }
 
 suite : Test

@@ -148,7 +148,7 @@ view model =
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
-                    Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime } OnHoverStats OnHoverMastery
+                    Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime } OnHoverStats OnHoverMastery
 
                   else if model.route == CommunityRoute then
                     Html.map CommunityMsg (Community.view model.communityData)
@@ -277,7 +277,7 @@ viewInfo info justLeveledUp =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px]" ]
         [ viewMetrics info
         , div [ class "mt-4 w-full flex justify-center" ]
-            [ viewProgression info.lessonIdx justLeveledUp
+            [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
             ]
         ]
 
@@ -323,10 +323,10 @@ viewMetrics info =
             info.metrics
 
         baseLetter =
-            getBaseLetterForLesson info.lessonIdx
+            getBaseLetterForLesson (getCurrentLayoutData info).lessonIdx
 
         stat =
-            getFamilyStats baseLetter info.letterStats
+            getFamilyStats baseLetter (getCurrentLayoutData info).letterStats
 
         accuracyScore =
             clamp 0 1 (1.0 - (stat.errorEma * 10))

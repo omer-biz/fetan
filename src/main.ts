@@ -112,6 +112,7 @@ import confetti from 'canvas-confetti';
               duration: { doubleValue: payload.duration },
               lessonIdx: { integerValue: payload.lessonIdx },
               slowestLetter: { stringValue: payload.slowestLetter },
+              layoutKind: { stringValue: payload.layoutKind },
               timestamp: { timestampValue: new Date().toISOString() }
             }
           })
@@ -151,6 +152,7 @@ import confetti from 'canvas-confetti';
                 duration: fields.duration?.doubleValue ? parseFloat(fields.duration.doubleValue) : (fields.duration?.integerValue ? parseFloat(fields.duration.integerValue) : 0),
                 lessonIdx: fields.lessonIdx?.integerValue ? parseInt(fields.lessonIdx.integerValue) : 0,
                 slowestLetter: fields.slowestLetter?.stringValue || "N/A",
+                layoutKind: fields.layoutKind?.stringValue || "Unknown",
                 timestamp: fields.timestamp?.timestampValue || new Date().toISOString()
              };
           });

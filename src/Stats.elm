@@ -17,6 +17,7 @@ type alias SessionRecord =
     , lessonIdx : Int
     , errors : List String
     , duration : Float
+    , layoutKind : String
     }
 
 type alias LetterStat =

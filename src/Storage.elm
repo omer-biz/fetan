@@ -41,24 +41,70 @@ statsDictDecoder =
 
 sessionRecordDecoder : Decode.Decoder SessionRecord
 sessionRecordDecoder =
-    Decode.map6 SessionRecord
+    Decode.map7 SessionRecord
         (Decode.field "timestamp" Decode.float)
         (Decode.field "wpm" Decode.int)
         (Decode.field "accuracy" Decode.int)
         (Decode.field "lessonIdx" Decode.int)
         (Decode.field "errors" (Decode.list Decode.string))
         (Decode.maybe (Decode.field "duration" Decode.float) |> Decode.map (Maybe.withDefault 0.0))
+        (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "Unknown"))
 
+
+layoutDataDecoder : Decode.Decoder LayoutData
+layoutDataDecoder =
+    Decode.map3 LayoutData
+        (Decode.field "lessonIdx" Decode.int |> Decode.map (\idx -> max 4 idx))
+        (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
+        (Decode.maybe (Decode.field "letterStats" statsDictDecoder) |> Decode.map (Maybe.withDefault Dict.empty))
+
+layoutsDictDecoder : Decode.Decoder (Dict.Dict String LayoutData)
+layoutsDictDecoder =
+    Decode.dict layoutDataDecoder
 
 infoDecoder : Decode.Decoder Info
 infoDecoder =
-    Decode.map6 Info
-        (Decode.field "metrics" metricsDecoder)
-        (Decode.field "lessonIdx" Decode.int |> Decode.map (\idx -> max 4 idx))
-        (Decode.maybe (Decode.field "layoutKind" Decode.string) |> Decode.map (Maybe.withDefault "GeezIME"))
-        (Decode.maybe (Decode.field "dictationsCompleted" Decode.int) |> Decode.map (Maybe.withDefault 0))
-        (Decode.maybe (Decode.field "letterStats" statsDictDecoder) |> Decode.map (Maybe.withDefault Dict.empty))
-        (Decode.maybe (Decode.field "history" (Decode.list sessionRecordDecoder)) |> Decode.map (Maybe.withDefault []))
+    Decode.value
+        |> Decode.andThen
+            (\val ->
+                let
+                    metrics =
+                        Decode.decodeValue (Decode.field "metrics" metricsDecoder) val
+                            |> Result.withDefault (Metrics { old = 0, new = 0 } { old = 0, new = 0 })
+
+                    layoutKind =
+                        Decode.decodeValue (Decode.field "layoutKind" Decode.string) val
+                            |> Result.withDefault "GeezIME"
+
+                    history =
+                        Decode.decodeValue (Decode.field "history" (Decode.list sessionRecordDecoder)) val
+                            |> Result.withDefault []
+
+                    layouts =
+                        Decode.decodeValue (Decode.field "layouts" layoutsDictDecoder) val
+                            |> Result.withDefault Dict.empty
+
+                    legacyLessonIdx =
+                        Decode.decodeValue (Decode.field "lessonIdx" Decode.int) val
+                            |> Result.withDefault 4
+                            |> max 4
+
+                    legacyDictationsCompleted =
+                        Decode.decodeValue (Decode.field "dictationsCompleted" Decode.int) val
+                            |> Result.withDefault 0
+
+                    legacyLetterStats =
+                        Decode.decodeValue (Decode.field "letterStats" statsDictDecoder) val
+                            |> Result.withDefault Dict.empty
+                            
+                    migratedLayouts =
+                        if Dict.isEmpty layouts && (legacyLessonIdx > 4 || legacyDictationsCompleted > 0 || not (Dict.isEmpty legacyLetterStats)) then
+                            Dict.singleton layoutKind (LayoutData legacyLessonIdx legacyDictationsCompleted legacyLetterStats)
+                        else
+                            layouts
+                in
+                Decode.succeed (Info metrics layoutKind history migratedLayouts)
+            )
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -92,17 +138,24 @@ encodeSessionRecord record =
         , ( "lessonIdx", Encode.int record.lessonIdx )
         , ( "errors", Encode.list Encode.string record.errors )
         , ( "duration", Encode.float record.duration )
+        , ( "layoutKind", Encode.string record.layoutKind )
         ]
 
+
+encodeLayoutData : LayoutData -> Encode.Value
+encodeLayoutData data =
+    Encode.object
+        [ ( "lessonIdx", Encode.int data.lessonIdx )
+        , ( "dictationsCompleted", Encode.int data.dictationsCompleted )
+        , ( "letterStats", Encode.dict identity encodeLetterStat data.letterStats )
+        ]
 
 encodeInfo : Info -> Encode.Value
 encodeInfo info =
     Encode.object
         [ ( "metrics", encodeMetrics info.metrics )
-        , ( "lessonIdx", Encode.int info.lessonIdx )
         , ( "layoutKind", Encode.string info.layoutKind )
-        , ( "dictationsCompleted", Encode.int info.dictationsCompleted )
-        , ( "letterStats", Encode.dict identity encodeLetterStat info.letterStats )
+        , ( "layouts", Encode.dict identity encodeLayoutData info.layouts )
         , ( "history", Encode.list encodeSessionRecord info.history )
         ]
 

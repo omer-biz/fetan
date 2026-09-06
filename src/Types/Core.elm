@@ -55,14 +55,20 @@ routeFromUrl url =
         TypingRoute
 
 
-type alias Info =
-    { metrics : Metrics
-    , lessonIdx : Int
-    , layoutKind : String
+
+type alias LayoutData =
+    { lessonIdx : Int
     , dictationsCompleted : Int
     , letterStats : Dict.Dict String LetterStat
-    , history : List SessionRecord
     }
+
+type alias Info =
+    { metrics : Metrics
+    , layoutKind : String
+    , history : List SessionRecord
+    , layouts : Dict.Dict String LayoutData
+    }
+
 
 
 type alias Metrics =
