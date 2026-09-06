@@ -842,10 +842,10 @@ viewLayoutOption : Layout.LayoutKind -> String -> String -> Bool -> Html Msg
 viewLayoutOption kind title desc recommended =
     button 
         [ onClick (CompleteLayoutSelection kind)
-        , class ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex flex-col gap-1 " ++ (if recommended then "border-emerald-500/50 hover:border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10 hover:bg-emerald-50 dark:hover:bg-emerald-900/20" else "border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50"))
+        , class ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex flex-col gap-1 " ++ (if recommended then "border-slate-400 dark:border-slate-500 bg-slate-100/50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm" else "border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50"))
         ]
         [ div [ class "flex items-center gap-2" ]
-            [ span [ class ("font-semibold text-lg " ++ (if recommended then "text-emerald-700 dark:text-emerald-400" else "text-stone-700 dark:text-stone-300")) ] [ text title ]
+            [ span [ class ("font-semibold text-lg " ++ (if recommended then "text-slate-800 dark:text-slate-200" else "text-stone-700 dark:text-stone-300")) ] [ text title ]
             ]
         , span [ class "text-sm text-stone-500 dark:text-stone-400" ] [ text desc ]
         ]
