@@ -56,6 +56,9 @@ update msg model =
             ( { model | keyboard = { keyboard | focusKeyBr = False } }, Cmd.none )
 
         KeyDown keyEvent ->
+            if not model.keyboard.focusKeyBr then
+                ( model, Cmd.none )
+            else
             let
                 isFirstKey = not model.started
                 
