@@ -320,7 +320,7 @@ update msg model =
                         |> List.map (hintMod hints)
 
                 keys =
-                    if model.lastKeyEvent > 0 then
+                    if model.lastKeyEvent > 0 && model.keyboard.focusKeyBr then
                         hintedToList
 
                     else
