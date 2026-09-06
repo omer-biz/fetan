@@ -460,22 +460,36 @@ viewDictation isFocused dict =
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0
-        , keyDown NoOp
-        , keyUp NoOp
+        , onKeyDownPreventDefault
+        , onKeyUpPreventDefault
         ]
         ( ("focus-overlay", isfocused) :: List.indexedMap viewLetter allLetters )
 
 
-keyDown : msg -> Html.Attribute msg
-keyDown msg =
+dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
+dispatchHelper modMsg regularMsg key =
+    if String.startsWith "Shift" key.code || String.startsWith "Alt" key.code || String.startsWith "Control" key.code || String.startsWith "Meta" key.code then
+        modMsg key.code
+    else
+        regularMsg key
+
+dispatchDown : KeyEvent -> Msg
+dispatchDown =
+    dispatchHelper ModKeyDown KeyDown
+
+dispatchUp : KeyEvent -> Msg
+dispatchUp =
+    dispatchHelper ModKeyUp KeyUp
+
+onKeyDownPreventDefault : Html.Attribute Msg
+onKeyDownPreventDefault =
     preventDefaultOn "keydown" <|
-        Decode.map (\a -> ( a, True )) (Decode.succeed msg)
+        Decode.map (\keyEvent -> ( dispatchDown keyEvent, True )) Storage.keyDecoder
 
-
-keyUp : msg -> Html.Attribute msg
-keyUp msg =
+onKeyUpPreventDefault : Html.Attribute Msg
+onKeyUpPreventDefault =
     preventDefaultOn "keyup" <|
-        Decode.map (\a -> ( a, True )) (Decode.succeed msg)
+        Decode.map (\keyEvent -> ( dispatchUp keyEvent, True )) Storage.keyDecoder
 
 
 viewKeyBoard : Keyboard -> Html Msg
