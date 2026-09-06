@@ -142,27 +142,18 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     let
         kbSubs =
-            if model.keyboard.focusKeyBr then
+            if model.keyboard.focusKeyBr || model.route == TypingRoute then
                 Sub.batch
-                    [ onKeyDown <| Decode.map dispatchDown Storage.keyDecoder
-                    , onKeyUp <| Decode.map dispatchUp Storage.keyDecoder
-                    , Time.every 1000 Tick
+                    [ Time.every 1000 Tick
                     ]
-
-            else if model.route == TypingRoute then
-                Sub.batch
-                    [ onKeyDown <| Decode.map dispatchDown Storage.keyDecoder
-                    , onKeyUp <| Decode.map dispatchUp Storage.keyDecoder
-                    , Time.every 1000 Tick
-                    ]
-
             else
                 Sub.none
     in
-    Sub.batch
-        [ kbSubs
-        , Ports.receiveCommunityStats GotCommunityStats
-        ]
+    if model.route == CommunityRoute then
+        Sub.batch [ Ports.receiveCommunityStats GotCommunityStats ]
+    else
+        Sub.batch [ kbSubs, Ports.receiveCommunityStats GotCommunityStats ]
+
 
 dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
 dispatchHelper modMsg regularMsg key =
