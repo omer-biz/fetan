@@ -15,6 +15,7 @@ import Stats exposing (LetterStat, SessionRecord)
 import Time
 import Types.KeyModifier exposing (KeyModifier(..))
 import Types.Core exposing (..)
+import Task
 import Types.Msg exposing (..)
 import Url exposing (Url)
 
@@ -85,6 +86,7 @@ init flags url navKey =
             , info = info
             , time = 0
             , timeOrigin = nowTime
+            , zone = Time.utc
             , sessionStartTime = 0
             , currentTime = nowTime
             , lastSuccessTime = 0
@@ -108,6 +110,7 @@ init flags url navKey =
     ( model
     , Cmd.batch
         [ Random.generate NewDict dictation
+        , Task.perform GotTimeZone Time.here
         , if model.route == CommunityRoute then
             Ports.fetchCommunityStats ()
 

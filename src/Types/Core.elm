@@ -7,6 +7,7 @@ import Dict exposing (Dict)
 import Models.Layout as Layout exposing (Layout(..))
 import Stats exposing (LetterStat, SessionRecord)
 import Types.KeyAttempt exposing (KeyAttempt(..))
+import Time
 import Types.KeyModifier exposing (KeyModifier(..))
 import Url exposing (Url)
 
@@ -21,6 +22,7 @@ type alias Model =
     , info : Info
     , time : Float
     , timeOrigin : Float
+    , zone : Time.Zone
     , sessionStartTime : Float
     , currentTime : Float
     , lastSuccessTime : Float

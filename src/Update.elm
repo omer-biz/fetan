@@ -478,6 +478,9 @@ update msg model =
         GotCommunityStats val ->
             ( { model | communityData = Community.handleReceiveStats val model.communityData }, Cmd.none )
 
+        GotTimeZone zone ->
+            ( { model | zone = zone }, Cmd.none )
+
         ClearLevelUp ->
             ( { model | justLeveledUp = False }, Cmd.none )
 

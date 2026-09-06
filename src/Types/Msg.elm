@@ -30,3 +30,4 @@ type Msg
     | OnHoverStats (List (CI.One { index : Float, record : SessionRecord } CI.Dot))
     | OnHoverMastery (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar))
     | ClearLevelUp
+    | GotTimeZone Time.Zone

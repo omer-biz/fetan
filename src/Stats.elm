@@ -32,6 +32,7 @@ type alias StatsData =
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
     , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     , currentTime : Float
+    , zone : Time.Zone
     }
 
 viewAggregateStats : String -> List SessionRecord -> Html msg
@@ -87,7 +88,21 @@ viewStats data onHover onHoverMastery =
             ]
         , Html.div [ class "flex flex-col md:flex-row gap-8 w-full" ]
             [ viewAggregateStats "All Time Statistics" data.history
-            , viewAggregateStats "Statistics for Today" (List.filter (\r -> data.currentTime - r.timestamp < 86400000) data.history)
+            , viewAggregateStats "Statistics for Today" 
+                (let
+                    currentPosix = Time.millisToPosix (round data.currentTime)
+                    cY = Time.toYear data.zone currentPosix
+                    cM = Time.toMonth data.zone currentPosix
+                    cD = Time.toDay data.zone currentPosix
+                 in
+                 List.filter (\r -> 
+                     let
+                         rPosix = Time.millisToPosix (round r.timestamp)
+                     in
+                     Time.toYear data.zone rPosix == cY &&
+                     Time.toMonth data.zone rPosix == cM &&
+                     Time.toDay data.zone rPosix == cD
+                 ) data.history)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.div [ class "flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4" ]
@@ -120,12 +135,12 @@ viewStats data onHover onHoverMastery =
         ]
 
 
-formatDate : Float -> String
-formatDate ts =
+formatDate : Time.Zone -> Float -> String
+formatDate zone ts =
     let
         posix = Time.millisToPosix (round ts)
         month = 
-            case Time.toMonth Time.utc posix of
+            case Time.toMonth zone posix of
                 Time.Jan -> "Jan"
                 Time.Feb -> "Feb"
                 Time.Mar -> "Mar"
@@ -138,17 +153,17 @@ formatDate ts =
                 Time.Oct -> "Oct"
                 Time.Nov -> "Nov"
                 Time.Dec -> "Dec"
-        day = String.fromInt (Time.toDay Time.utc posix)
+        day = String.fromInt (Time.toDay zone posix)
     in
     month ++ " " ++ day
 
 
-formatDateTime : Float -> String
-formatDateTime ts =
+formatDateTime : Time.Zone -> Float -> String
+formatDateTime zone ts =
     let
         posix = Time.millisToPosix (round ts)
         month = 
-            case Time.toMonth Time.utc posix of
+            case Time.toMonth zone posix of
                 Time.Jan -> "Jan"
                 Time.Feb -> "Feb"
                 Time.Mar -> "Mar"
@@ -161,9 +176,9 @@ formatDateTime ts =
                 Time.Oct -> "Oct"
                 Time.Nov -> "Nov"
                 Time.Dec -> "Dec"
-        day = String.fromInt (Time.toDay Time.utc posix)
-        h = Time.toHour Time.utc posix
-        m = Time.toMinute Time.utc posix
+        day = String.fromInt (Time.toDay zone posix)
+        h = Time.toHour zone posix
+        m = Time.toMinute zone posix
         pad n = if n < 10 then "0" ++ String.fromInt n else String.fromInt n
     in
     month ++ " " ++ day ++ " at " ++ pad h ++ ":" ++ pad m
@@ -189,7 +204,7 @@ viewTimelineChart data onHover =
                 , CA.color "var(--chart-text)"
                 , CA.format (\x -> 
                     case List.head (List.drop (round x) history) of
-                        Just d -> formatDate d.record.timestamp
+                        Just d -> formatDate data.zone d.record.timestamp
                         Nothing -> ""
                   )
                 ]
@@ -206,7 +221,7 @@ viewTimelineChart data onHover =
                 in
                 [ C.tooltip item [] [] 
                     [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50 animate-tooltip-enter" ] 
-                        [ Html.div [ class "text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1" ] [ Html.text (formatDateTime rec.timestamp) ]
+                        [ Html.div [ class "text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1" ] [ Html.text (formatDateTime data.zone rec.timestamp) ]
                         , Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
                         , Html.div [] [ Html.text ("Lesson: " ++ String.fromInt rec.lessonIdx) ]
@@ -249,6 +264,9 @@ viewMasteryChart data onHoverMastery =
             , C.bars
                 [ CA.margin 0.2 ]
                 [ C.bar (\x -> x.stat.latencyEma) [ CA.color "var(--chart-primary)" ] ]
+                stats
+            , C.series (\x -> x.index)
+                [ C.interpolated (\_ -> 500) [ CA.color "var(--chart-secondary)", CA.dashed [ 4, 4 ], CA.width 2 ] [] ]
                 stats
             , C.each data.hoveringMastery <| \p item ->
                 let
