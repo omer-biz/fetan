@@ -57,14 +57,28 @@ update msg model =
 
         KeyDown keyEvent ->
             let
+                isFirstKey = not model.started
+                
                 newLastSuccessTime =
-                    if not model.started then
+                    if isFirstKey then
                         keyEvent.timeStamp
 
                     else
                         model.lastSuccessTime
+                        
+                newSessionStartTime =
+                    if isFirstKey then
+                        model.timeOrigin + keyEvent.timeStamp
+                    else
+                        model.sessionStartTime
             in
-            ( { model | keyboard = { keyboard | keys = updateKey keyEvent.code Pressed }, lastKeyEvent = 0, started = True, lastSuccessTime = newLastSuccessTime }, Cmd.none )
+            ( { model 
+                | keyboard = { keyboard | keys = updateKey keyEvent.code Pressed }
+                , lastKeyEvent = 0
+                , started = True
+                , lastSuccessTime = newLastSuccessTime
+                , sessionStartTime = newSessionStartTime 
+              }, Cmd.none )
 
         KeyUp keyEvent ->
             let

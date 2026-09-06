@@ -20,6 +20,8 @@ type alias Model =
     , dictation : Dictation
     , info : Info
     , time : Float
+    , timeOrigin : Float
+    , sessionStartTime : Float
     , currentTime : Float
     , lastSuccessTime : Float
     , lastKeyEvent : Float
