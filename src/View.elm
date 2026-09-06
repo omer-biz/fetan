@@ -426,13 +426,6 @@ viewDictation isFocused dict =
                     else
                         "text-stone-800 dark:text-stone-200"
 
-                caret =
-                    if isCurrent then
-                        span [ class "absolute left-0 top-[0.1em] bottom-[0.1em] w-[2px] bg-slate-500 dark:bg-slate-400 animate-blink rounded-full" ] []
-
-                    else
-                        text ""
-
                 classes =
                     String.join " " [ "relative rounded-sm py-0.5", spaceClass, colorClass ]
             in
@@ -445,8 +438,7 @@ viewDictation isFocused dict =
                   else
                     class ""
                 ]
-                [ caret
-                , if isSpace then
+                [ if isSpace then
                     text " "
 
                   else
