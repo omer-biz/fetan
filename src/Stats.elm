@@ -183,10 +183,18 @@ viewTimelineChart data onHover =
             , CE.onMouseMove onHover (CE.getNearest CI.dots)
             , CE.onMouseLeave (onHover [])
             ]
-            [ C.xLabels [ CA.amount (min 6 (List.length history)), CA.color "var(--chart-text)", CA.format formatDate ]
+            [ C.xLabels 
+                [ CA.amount (min 6 (List.length history))
+                , CA.color "var(--chart-text)"
+                , CA.format (\x -> 
+                    case List.head (List.drop (round x) history) of
+                        Just d -> formatDate d.record.timestamp
+                        Nothing -> ""
+                  )
+                ]
             , C.yLabels [ CA.withGrid, CA.color "var(--chart-text)" ]
             , C.grid [ CA.color "var(--chart-grid)", CA.width 1 ]
-            , C.series (\d -> d.record.timestamp)
+            , C.series (\d -> d.index)
                 [ C.interpolated (\d -> toFloat d.record.wpm) [ CA.color "var(--chart-primary)", CA.width 3 ] []
                 , C.interpolated (\d -> toFloat d.record.accuracy) [ CA.color "var(--chart-secondary)", CA.width 2, CA.dashed [6, 6] ] []
                 ]
