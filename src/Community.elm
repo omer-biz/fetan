@@ -187,7 +187,7 @@ viewBarChart title desc data hovering =
                 , C.each hovering <| \p item ->
                     let rec = (CI.getData item) in
                     [ C.tooltip item [] [] 
-                        [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                        [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50 animate-tooltip-enter" ] 
                             [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Level " ++ String.fromInt rec.lessonIdx) ]
                             , Html.div [ class "font-bold text-amber-600 dark:text-amber-500" ] [ Html.text ("Total Attempts: " ++ String.fromInt rec.count) ]
                             ]
@@ -230,7 +230,7 @@ viewLetterChart title desc data hovering =
                 , C.each hovering <| \p item ->
                     let rec = (CI.getData item) in
                     [ C.tooltip item [] [] 
-                        [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                        [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50 animate-tooltip-enter" ] 
                             [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Letter: " ++ rec.letter) ]
                             , Html.div [ class "font-bold text-rose-600 dark:text-rose-500" ] [ Html.text ("Struggled: " ++ String.fromInt rec.count ++ " times") ]
                             ]

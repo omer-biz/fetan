@@ -205,7 +205,7 @@ viewTimelineChart data onHover =
                     rec = (CI.getData item).record
                 in
                 [ C.tooltip item [] [] 
-                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50 animate-tooltip-enter" ] 
                         [ Html.div [ class "text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1" ] [ Html.text (formatDateTime rec.timestamp) ]
                         , Html.div [ class "font-bold text-slate-800 dark:text-slate-100" ] [ Html.text ("WPM: " ++ String.fromInt rec.wpm) ]
                         , Html.div [ class "font-bold text-slate-500 dark:text-slate-400" ] [ Html.text ("Accuracy: " ++ String.fromInt rec.accuracy ++ "%") ]
@@ -255,7 +255,7 @@ viewMasteryChart data onHoverMastery =
                     rec = (CI.getData item)
                 in
                 [ C.tooltip item [] [] 
-                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50" ] 
+                    [ Html.div [ class "flex flex-col gap-1 text-sm text-stone-700 dark:text-stone-300 bg-white dark:bg-stone-900 p-3 rounded-lg shadow-xl border border-stone-200 dark:border-stone-800 z-50 animate-tooltip-enter" ] 
                         [ Html.div [ class "font-bold text-slate-800 dark:text-slate-100 text-base mb-1" ] [ Html.text ("Letter: " ++ rec.letter) ]
                         , Html.div [ class "font-bold text-amber-600 dark:text-amber-500" ] [ Html.text ("Avg Delay: " ++ String.fromInt (round rec.stat.latencyEma) ++ "ms") ]
                         , Html.div [ class "font-bold text-rose-600 dark:text-rose-500" ] [ Html.text ("Error Rate: " ++ String.fromInt (round (rec.stat.errorEma * 100)) ++ "%") ]
