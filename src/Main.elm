@@ -2,32 +2,32 @@ port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Browser.Events exposing (onKeyDown, onKeyUp)
 import Browser.Navigation as Nav
-import Url exposing (Url)
 import Chart as C
 import Chart.Attributes as CA
 import Chart.Events as CE
 import Chart.Item as CI
-import Stats exposing (SessionRecord, LetterStat)
 import Community
-import Browser.Events exposing (onKeyDown, onKeyUp)
 import Dict exposing (Dict, update)
 import Dictation as DictGen
 import Html exposing (Html, a, div, main_, option, p, select, span, table, tbody, td, text, tr)
-import Html.Attributes exposing (class, href, selected, tabindex, target, value, id)
+import Html.Attributes exposing (class, href, id, selected, tabindex, target, value)
 import Html.Events exposing (onBlur, onFocus, onInput, preventDefaultOn)
 import Html.Keyed as Keyed
 import Json.Decode as Decode
 import Json.Encode as Encode exposing (dict)
 import Models.Layout as Layout exposing (Layout(..))
+import Process
 import Random
+import Stats exposing (LetterStat, SessionRecord)
 import Svg exposing (path, svg)
 import Svg.Attributes as SvgAttr
-import Time
-import Process
 import Task
+import Time
 import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
+import Url exposing (Url)
 
 
 type Theme
@@ -57,21 +57,23 @@ type alias Model =
     }
 
 
-
-
 type Route
     = TypingRoute
     | StatsRoute
     | CommunityRoute
 
+
 routeFromUrl : Url -> Route
 routeFromUrl url =
     if url.fragment == Just "stats" then
         StatsRoute
+
     else if url.fragment == Just "community" then
         CommunityRoute
+
     else
         TypingRoute
+
 
 type alias Info =
     { metrics : Metrics
@@ -236,6 +238,52 @@ updateFirstOccurrence predicate modVal list =
     helper [] list
 
 
+getFamilyStats : String -> Dict String LetterStat -> LetterStat
+getFamilyStats baseLetter stats =
+    let
+        baseCode =
+            case String.uncons baseLetter of
+                Just ( c, _ ) ->
+                    Char.toCode c
+
+                Nothing ->
+                    0
+
+        familyMembers =
+            Dict.filter
+                (\k _ ->
+                    case String.uncons k of
+                        Just ( c, _ ) ->
+                            let
+                                code =
+                                    Char.toCode c
+                            in
+                            code >= baseCode && code < baseCode + 8
+
+                        Nothing ->
+                            False
+                )
+                stats
+
+        totalCount =
+            Dict.foldl (\_ v acc -> acc + v.count) 0 familyMembers
+
+        avgLatency =
+            if totalCount == 0 then
+                0
+
+            else
+                (Dict.foldl (\_ v acc -> acc + (v.latencyEma * toFloat v.count)) 0 familyMembers) / toFloat totalCount
+
+        avgError =
+            if totalCount == 0 then
+                0
+
+            else
+                (Dict.foldl (\_ v acc -> acc + (v.errorEma * toFloat v.count)) 0 familyMembers) / toFloat totalCount
+    in
+    { count = totalCount, latencyEma = avgLatency, errorEma = avgError }
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
@@ -288,6 +336,7 @@ update msg model =
                         Maybe.map (\c -> String.fromChar c.letter) dictation.current
                             |> Maybe.map (\char -> model.currentErrors ++ [ char ])
                             |> Maybe.withDefault model.currentErrors
+
                     else
                         model.currentErrors
 
@@ -342,7 +391,7 @@ update msg model =
                                         getBaseLetterForLesson info.lessonIdx
 
                                     stat =
-                                        Dict.get baseLetter updatedStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+                                        getFamilyStats baseLetter updatedStats
 
                                     accuracyScore =
                                         clamp 0 1 (1.0 - (stat.errorEma * 10))
@@ -366,7 +415,7 @@ update msg model =
                     , nextCompleted = finalCompleted
                     , nextStats = updatedStats
                     , newLastSuccessTime = updatedTime
-                    , didLevelUp = (finalLessonIdx > info.lessonIdx)
+                    , didLevelUp = finalLessonIdx > info.lessonIdx
                     , nextLetter = getBaseLetterForLesson finalLessonIdx
                     }
             in
@@ -374,18 +423,23 @@ update msg model =
                 | keyboard = { keyboard | keys = updateKey keyEvent.code Released }
                 , currentLayout = layout
                 , dictation = dict
-                , info = 
-                    { info 
-                    | lessonIdx = updates.nextLessonIdx
-                    , dictationsCompleted = updates.nextCompleted
-                    , letterStats = updates.nextStats 
+                , info =
+                    { info
+                        | lessonIdx = updates.nextLessonIdx
+                        , dictationsCompleted = updates.nextCompleted
+                        , letterStats = updates.nextStats
                     }
                 , lastSuccessTime = updates.newLastSuccessTime
                 , currentErrors = newErrors
+                , justLeveledUp = if updates.didLevelUp then True else model.justLeveledUp
               }
             , if dict.current == Nothing then
-                DictGen.genForLevel updates.nextLessonIdx
-                    |> Random.generate NewDict
+                Cmd.batch
+                    [ DictGen.genForLevel updates.nextLessonIdx
+                        |> Random.generate NewDict
+                    , if updates.didLevelUp then triggerLevelUp (String.fromInt updates.nextLessonIdx) else Cmd.none
+                    , if updates.didLevelUp then Task.perform (\_ -> ClearLevelUp) (Process.sleep 2000) else Cmd.none
+                    ]
 
               else
                 Cmd.none
@@ -429,14 +483,15 @@ update msg model =
                 , lastKeyEvent = 0
                 , started = False
                 , currentErrors = []
-                , info = 
-                    { info 
-                    | metrics = newMetrics
-                    , history = 
-                        if model.time /= 0 then
-                            info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = info.lessonIdx, errors = model.currentErrors } ]
-                        else
-                            info.history
+                , info =
+                    { info
+                        | metrics = newMetrics
+                        , history =
+                            if model.time /= 0 then
+                                info.history ++ [ { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = info.lessonIdx, errors = model.currentErrors } ]
+
+                            else
+                                info.history
                     }
               }
             , if model.time == 0 then
@@ -444,14 +499,14 @@ update msg model =
 
               else
                 let
-                    slowestLetter = 
+                    slowestLetter =
                         Dict.toList info.letterStats
-                            |> List.filter (\(_, s) -> s.count > 0)
-                            |> List.sortBy (\(_, s) -> -s.latencyEma)
+                            |> List.filter (\( _, s ) -> s.count > 0)
+                            |> List.sortBy (\( _, s ) -> -s.latencyEma)
                             |> List.head
                             |> Maybe.map Tuple.first
                             |> Maybe.withDefault "N/A"
-                    
+
                     payload =
                         Encode.object
                             [ ( "wpm", Encode.int newMetrics.speed.new )
@@ -461,7 +516,7 @@ update msg model =
                             , ( "slowestLetter", Encode.string slowestLetter )
                             ]
                 in
-                Cmd.batch 
+                Cmd.batch
                     [ saveInfo <| encodeInfo { info | metrics = newMetrics }
                     , trackEvent payload
                     ]
@@ -469,7 +524,9 @@ update msg model =
 
         Tick posix ->
             let
-                nowMillis = toFloat (Time.posixToMillis posix)
+                nowMillis =
+                    toFloat (Time.posixToMillis posix)
+
                 hints =
                     case dictation.current of
                         Just curr ->
@@ -613,8 +670,15 @@ update msg model =
 
         UrlChanged url ->
             let
-                newRoute = routeFromUrl url
-                cmd = if newRoute == CommunityRoute then fetchCommunityStats () else Cmd.none
+                newRoute =
+                    routeFromUrl url
+
+                cmd =
+                    if newRoute == CommunityRoute then
+                        fetchCommunityStats ()
+
+                    else
+                        Cmd.none
             in
             ( { model | route = newRoute }, cmd )
 
@@ -766,8 +830,6 @@ updateAccuracy totalChars correctChars metrics =
     { metrics | accuracy = accuracy }
 
 
-
-
 sunIcon : Html msg
 sunIcon =
     svg
@@ -827,6 +889,7 @@ communityIcon =
         , Svg.path [ SvgAttr.d "M16 3.13a4 4 0 0 1 0 7.75" ] []
         ]
 
+
 statsIcon : Html msg
 statsIcon =
     Svg.svg
@@ -845,6 +908,7 @@ statsIcon =
         , Svg.path [ SvgAttr.d "M8 17v-3" ] []
         ]
 
+
 viewHeader : Model -> Html Msg
 viewHeader model =
     Html.header [ class "relative z-10 w-full flex justify-between items-center mb-8" ]
@@ -856,19 +920,20 @@ viewHeader model =
             , if model.route == StatsRoute || model.route == CommunityRoute then
                 Html.button
                     [ Html.Events.onClick (GoTo TypingRoute)
-                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center text-sm font-medium gap-1" 
+                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center text-sm font-medium gap-1"
                     ]
                     [ text "Back" ]
+
               else
                 Html.div [ class "flex items-center gap-3" ]
                     [ Html.button
                         [ Html.Events.onClick (GoTo StatsRoute)
-                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
                         ]
                         [ statsIcon ]
                     , Html.button
                         [ Html.Events.onClick (GoTo CommunityRoute)
-                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center" 
+                        , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
                         ]
                         [ communityIcon ]
                     ]
@@ -877,19 +942,19 @@ viewHeader model =
         ]
 
 
-
-
 view : Model -> Browser.Document Msg
 view model =
     { title = "qelm"
-    , body = 
+    , body =
         [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
                     Stats.viewStats { history = model.info.history, letterStats = model.info.letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime } OnHoverStats OnHoverMastery
+
                   else if model.route == CommunityRoute then
                     Html.map CommunityMsg (Community.view model.communityData)
+
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info model.justLeveledUp
@@ -1029,16 +1094,20 @@ viewProgression idx justLeveledUp =
         (List.indexedMap
             (\i c ->
                 let
-                    letterIdx = i + 1
-                    
+                    letterIdx =
+                        i + 1
+
                     stateClasses =
                         if letterIdx < effIdx then
                             "text-stone-800 dark:text-stone-200 font-medium"
+
                         else if letterIdx == effIdx then
                             if justLeveledUp then
                                 "text-emerald-500 dark:text-emerald-400 font-bold border-b-2 border-emerald-500 pb-0.5 animate-bounce scale-125 shadow-emerald-500/50"
+
                             else
                                 "text-slate-600 dark:text-slate-400 font-bold border-b-2 border-slate-500/50 pb-0.5"
+
                         else
                             "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
@@ -1047,9 +1116,6 @@ viewProgression idx justLeveledUp =
             )
             DictGen.learningSequence
         )
-
-
-
 
 
 viewMetrics : Info -> Html msg
@@ -1062,7 +1128,7 @@ viewMetrics info =
             getBaseLetterForLesson info.lessonIdx
 
         stat =
-            Dict.get baseLetter info.letterStats |> Maybe.withDefault { errorEma = 0, latencyEma = 0, count = 0 }
+            getFamilyStats baseLetter info.letterStats
 
         accuracyScore =
             clamp 0 1 (1.0 - (stat.errorEma * 10))
@@ -1086,9 +1152,10 @@ viewMetrics info =
                     [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest font-semibold text-center" ] [ text label ]
                     , if String.isEmpty tooltip then
                         text ""
+
                       else
-                        div [ class "relative flex items-center justify-center w-3 h-3 rounded-full border border-stone-300 dark:border-stone-600 text-[9px] text-stone-400 dark:text-stone-500 cursor-help" ] 
-                            [ text "?" 
+                        div [ class "relative flex items-center justify-center w-3 h-3 rounded-full border border-stone-300 dark:border-stone-600 text-[9px] text-stone-400 dark:text-stone-500 cursor-help" ]
+                            [ text "?"
                             , div [ class "absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-2 bg-stone-800 dark:bg-stone-200 text-stone-100 dark:text-stone-800 text-[11px] leading-tight rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 normal-case tracking-normal font-normal text-center pointer-events-none" ]
                                 [ text tooltip
                                 , div [ class "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-stone-800 dark:border-t-stone-200" ] []
@@ -1163,10 +1230,16 @@ viewDictation dict =
 
                 classes =
                     String.join " " [ "relative rounded-sm py-0.5", spaceClass, colorClass ]
-
             in
             ( String.fromInt idx
-            , span [ class classes, if isCurrent then Html.Attributes.id "active-letter" else class "" ]
+            , span
+                [ class classes
+                , if isCurrent then
+                    Html.Attributes.id "active-letter"
+
+                  else
+                    class ""
+                ]
                 [ if isSpace then
                     text " "
 
@@ -1393,12 +1466,14 @@ viewKey modifier key =
     let
         isActiveCaps =
             key.code == "CapsLock" && (modifier == CapsLock || modifier == ShiftCapsLock)
-            
+
         isActiveShift =
             (key.code == "ShiftLeft" || key.code == "ShiftRight") && (modifier == Shift || modifier == ShiftCapsLock)
+
         bg =
             if isActiveShift && key.state /= Pressed then
                 "bg-slate-300 dark:bg-slate-700 text-slate-900 dark:text-slate-100 border-t border-l border-r border-slate-400 dark:border-slate-600 " ++ fingerColorClass key.code
+
             else
                 case key.state of
                     Pressed ->
@@ -1418,11 +1493,22 @@ viewKey modifier key =
         [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
         [ if isActiveCaps then
             div [ class "absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]" ] []
+
           else if key.code == "CapsLock" then
             div [ class "absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-stone-300 dark:bg-stone-600" ] []
+
           else
             text ""
-        , text (if key.code == "CapsLock" then "Caps" else if key.code == "ShiftLeft" || key.code == "ShiftRight" then "Shift" else key.view)
+        , text
+            (if key.code == "CapsLock" then
+                "Caps"
+
+             else if key.code == "ShiftLeft" || key.code == "ShiftRight" then
+                "Shift"
+
+             else
+                key.view
+            )
         , case String.split "Key" key.code of
             "" :: "F" :: [] ->
                 span [ class "absolute z-2 bottom-0 inset-x-0 text-2xl" ] [ text "." ]
@@ -1448,6 +1534,7 @@ subscriptions model =
                     , onKeyUp <| Decode.map dispatchUp keyDecoder
                     , Time.every 1000 Tick
                     ]
+
             else
                 Sub.none
     in
@@ -1595,6 +1682,7 @@ init flags url navKey =
             case Decode.decodeValue (Decode.field "now" Decode.float) flags of
                 Ok t ->
                     t
+
                 Err _ ->
                     0
 
@@ -1630,7 +1718,16 @@ init flags url navKey =
         dictation =
             DictGen.genForLevel info.lessonIdx
     in
-    ( model, Cmd.batch [ Random.generate NewDict dictation, if model.route == CommunityRoute then fetchCommunityStats () else Cmd.none ] )
+    ( model
+    , Cmd.batch
+        [ Random.generate NewDict dictation
+        , if model.route == CommunityRoute then
+            fetchCommunityStats ()
+
+          else
+            Cmd.none
+        ]
+    )
 
 
 metricDecoder : Decode.Decoder { old : Int, new : Int }
@@ -1669,6 +1766,7 @@ sessionRecordDecoder =
         (Decode.field "lessonIdx" Decode.int)
         (Decode.field "errors" (Decode.list Decode.string))
         (Decode.maybe (Decode.field "duration" Decode.float) |> Decode.map (Maybe.withDefault 0.0))
+
 
 infoDecoder : Decode.Decoder Info
 infoDecoder =
@@ -1714,6 +1812,7 @@ encodeSessionRecord record =
         , ( "duration", Encode.float record.duration )
         ]
 
+
 encodeInfo : Info -> Encode.Value
 encodeInfo info =
     Encode.object
@@ -1724,6 +1823,7 @@ encodeInfo info =
         , ( "letterStats", Encode.dict identity encodeLetterStat info.letterStats )
         , ( "history", Encode.list encodeSessionRecord info.history )
         ]
+
 
 initMetric : Metrics
 initMetric =
@@ -1747,7 +1847,15 @@ main =
 
 
 port saveTheme : String -> Cmd msg
+
+
 port trackEvent : Encode.Value -> Cmd msg
+
+
 port triggerLevelUp : String -> Cmd msg
+
+
 port fetchCommunityStats : () -> Cmd msg
+
+
 port receiveCommunityStats : (Encode.Value -> msg) -> Sub msg
