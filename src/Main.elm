@@ -83,7 +83,6 @@ type alias Info =
 type alias Metrics =
     { speed : { old : Int, new : Int }
     , accuracy : { old : Int, new : Int }
-    , score : { old : Int, new : Int }
     }
 
 
@@ -414,7 +413,6 @@ update msg model =
                         info.metrics
                             |> updateSpeed model.time lenChars
                             |> updateAccuracy lenChars correctChars
-                            |> updateScore
 
                     else
                         metrics
@@ -759,13 +757,6 @@ updateAccuracy totalChars correctChars metrics =
     { metrics | accuracy = accuracy }
 
 
-updateScore : Metrics -> Metrics
-updateScore metrics =
-    let
-        score =
-            { old = metrics.score.new, new = metrics.score.old + metrics.speed.new + metrics.accuracy.new }
-    in
-    { metrics | score = score }
 
 
 sunIcon : Html msg
@@ -1077,9 +1068,21 @@ viewMetrics info =
         confStr =
             String.fromInt (round (conf * 100))
 
-        viewMetric label m pst =
-            div [ class "flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.03)] dark:shadow-none border border-stone-200/80 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
-                [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest mb-1 font-semibold text-center" ] [ text label ]
+        viewMetric label m pst tooltip =
+            div [ class "relative group flex flex-col items-center p-3 md:p-4 bg-white dark:bg-stone-800/80 rounded-lg shadow-[0_2px_12px_rgb(0,0,0,0.03)] dark:shadow-none border border-stone-200/80 dark:border-stone-700/50 flex-1 min-w-[100px] md:min-w-[120px]" ]
+                [ div [ class "flex items-center gap-1 mb-1" ]
+                    [ span [ class "text-[10px] md:text-[11px] text-stone-500 dark:text-stone-400 uppercase tracking-widest font-semibold text-center" ] [ text label ]
+                    , if String.isEmpty tooltip then
+                        text ""
+                      else
+                        div [ class "relative flex items-center justify-center w-3 h-3 rounded-full border border-stone-300 dark:border-stone-600 text-[9px] text-stone-400 dark:text-stone-500 cursor-help" ] 
+                            [ text "?" 
+                            , div [ class "absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 p-2 bg-stone-800 dark:bg-stone-200 text-stone-100 dark:text-stone-800 text-[11px] leading-tight rounded shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 normal-case tracking-normal font-normal text-center pointer-events-none" ]
+                                [ text tooltip
+                                , div [ class "absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-stone-800 dark:border-t-stone-200" ] []
+                                ]
+                            ]
+                    ]
                 , div [ class "flex items-baseline gap-1" ]
                     [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text m ]
                     , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500 tracking-wide" ] [ text pst ]
@@ -1087,10 +1090,9 @@ viewMetrics info =
                 ]
     in
     div [ class "flex flex-wrap justify-center gap-3 md:gap-6 w-full" ]
-        [ viewMetric "Speed" (String.fromInt metrics.speed.new) "wpm"
-        , viewMetric "Accuracy" (String.fromInt metrics.accuracy.new) "%"
-        , viewMetric "Confidence" confStr "%"
-        , viewMetric "Score" (String.fromInt metrics.score.new) ""
+        [ viewMetric "Speed" (String.fromInt metrics.speed.new) "wpm" ""
+        , viewMetric "Accuracy" (String.fromInt metrics.accuracy.new) "%" ""
+        , viewMetric "Mastery" confStr "%" "Mastery reflects how consistently and quickly you can type this lesson's characters."
         ]
 
 
@@ -1627,10 +1629,9 @@ metricDecoder =
 
 metricsDecoder : Decode.Decoder Metrics
 metricsDecoder =
-    Decode.map3 Metrics
+    Decode.map2 Metrics
         (Decode.field "speed" metricDecoder)
         (Decode.field "accuracy" metricDecoder)
-        (Decode.field "score" metricDecoder)
 
 
 letterStatDecoder : Decode.Decoder LetterStat
@@ -1677,7 +1678,6 @@ encodeMetrics metrics =
     Encode.object
         [ ( "speed", encodeMetric metrics.speed )
         , ( "accuracy", encodeMetric metrics.accuracy )
-        , ( "score", encodeMetric metrics.score )
         ]
 
 
@@ -1718,7 +1718,7 @@ initMetric =
         new =
             { old = 0, new = 0 }
     in
-    Metrics new new new
+    Metrics new new
 
 
 main : Program Encode.Value Model Msg
