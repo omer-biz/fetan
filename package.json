@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
+    "elm-test": "^0.19.1-revision12",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-elm": "^3.0.1",
