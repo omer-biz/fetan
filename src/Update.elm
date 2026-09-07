@@ -63,11 +63,13 @@ update msg model =
             let
                 infoAfterOnboarding =
                     if model.info.onboardingStep == 1 then
-                        { info | onboardingStep = 2 }
+                        { info | onboardingStep = 3 }
                     else if model.info.onboardingStep == 3 then
                         { info | onboardingStep = 4 }
                     else if model.info.onboardingStep == 5 then
                         { info | onboardingStep = 6 }
+                    else if model.info.onboardingStep == 7 then
+                        { info | onboardingStep = 8 }
                     else
                         model.info
 
@@ -287,10 +289,10 @@ update msg model =
                                 info.aggregate
                         , onboardingStep =
                             if model.time /= 0 then
-                                if info.onboardingStep == 2 then
-                                    3
-                                else if info.onboardingStep == 4 then
+                                if info.onboardingStep == 4 then
                                     5
+                                else if info.onboardingStep == 6 then
+                                    7
                                 else
                                     info.onboardingStep
                             else
@@ -344,7 +346,7 @@ update msg model =
                         |> List.map (hintMod hints)
 
                 keys =
-                    if model.lastKeyEvent > 0 && model.keyboard.focusKeyBr then
+                    if (model.lastKeyEvent > 0 || model.info.onboardingStep == 3) && model.keyboard.focusKeyBr then
                         hintedToList
 
                     else
@@ -484,7 +486,7 @@ update msg model =
             
         SkipOnboarding ->
             let
-                newInfo = { info | onboardingStep = 6 }
+                newInfo = { info | onboardingStep = 8 }
             in
             ( { model | info = newInfo }, Ports.saveInfo (Storage.encodeInfo newInfo) )
 

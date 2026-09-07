@@ -159,7 +159,7 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "qelm"
     , body =
-        [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
+        [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full overflow-x-hidden" ]
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
@@ -175,7 +175,7 @@ view model =
                             [ viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
                             , if model.info.onboardingStep == 1 then viewOnboardingTooltip 1 "bottom-full left-1/2 -translate-x-1/2 mb-2" "down" else text ""
                             ]
-                        , viewKeyBoard model.keyboard
+                        , viewKeyBoard model.keyboard model.info.onboardingStep
                         ]
                 , if model.info.onboardingStep == 0 then viewOnboardingOverlay else text ""
                 ]
@@ -296,11 +296,11 @@ viewInfo info justLeveledUp =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px] relative" ]
         [ div [ class "relative w-full" ] 
             [ viewMetrics info 
-            , if info.onboardingStep == 5 then viewOnboardingTooltip 5 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
+            , if info.onboardingStep == 7 then viewOnboardingTooltip 7 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         , div [ class "mt-4 w-full flex justify-center relative" ]
             [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
-            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
+            , if info.onboardingStep == 5 then viewOnboardingTooltip 5 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         ]
 
@@ -518,33 +518,33 @@ onKeyUpPreventDefault =
         Decode.map (\keyEvent -> ( dispatchUp keyEvent, True )) Storage.keyDecoder
 
 
-viewKeyBoard : Keyboard -> Html Msg
-viewKeyBoard keyboard =
+viewKeyBoard : Keyboard -> Int -> Html Msg
+viewKeyBoard keyboard onboardingStep =
     let
         firstRow =
             List.take 14 keyboard.keys
-                |> List.map (viewKey keyboard.modifier)
+                |> List.map (\k -> viewKey keyboard.modifier k onboardingStep)
                 |> viewRow
 
         secondRow =
             List.drop 14 keyboard.keys
                 |> List.take 13
-                |> List.map (viewKey keyboard.modifier)
+                |> List.map (\k -> viewKey keyboard.modifier k onboardingStep)
                 |> viewRow
 
         thirdRow =
             List.drop 27 keyboard.keys
                 |> List.take 12
-                |> List.map (viewKey keyboard.modifier)
+                |> List.map (\k -> viewKey keyboard.modifier k onboardingStep)
                 |> viewRow
 
         fourthRow =
             List.drop 39 keyboard.keys
                 |> List.take 5
-                |> List.map (viewKey keyboard.modifier)
+                |> List.map (\k -> viewKey keyboard.modifier k onboardingStep)
                 |> viewRow
     in
-    div [ class "w-full overflow-hidden flex justify-center pb-8 -mb-8" ]
+    div [ class "w-full flex justify-center pb-8 -mb-8" ]
         [ div
             [ class <| "border-2 p-3 sm:p-4 md:p-6 rounded-xl border-stone-300 dark:border-stone-800 bg-stone-100 dark:bg-stone-900/50 transition-all duration-300 transform origin-top scale-[0.45] sm:scale-[0.65] md:scale-[0.85] lg:scale-100"
             ]
@@ -702,8 +702,8 @@ fingerColorClass code =
             "border-b-[4px] border-b-stone-300 dark:border-b-stone-600/50"
 
 
-viewKey : KeyModifier -> Key -> Html msg
-viewKey modifier key =
+viewKey : KeyModifier -> Key -> Int -> Html Msg
+viewKey modifier key onboardingStep =
     let
         isActiveCaps =
             key.code == "CapsLock" && (modifier == CapsLock || modifier == ShiftCapsLock)
@@ -732,7 +732,11 @@ viewKey modifier key =
     in
     div
         [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
-        [ if isActiveCaps then
+        [ if key.state == Hinted && onboardingStep == 3 then
+            viewOnboardingTooltip 3 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down"
+          else
+            text ""
+        , if isActiveCaps then
             div [ class "absolute top-1.5 left-1.5 w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]" ] []
 
           else if key.code == "CapsLock" then
@@ -818,9 +822,12 @@ onboardingText step =
             "Type the Latin keys, and they'll transform into Amharic characters. Try it!"
 
         3 ->
-            "Your progress — The underscored character is your current lesson. It unlocks the next one once you reach 85% mastery."
+            "If you're stuck, the keyboard will guide you. Press the pulsing key!"
 
         5 ->
+            "Your progress — The underscored character is your current lesson. It unlocks the next one once you reach 85% mastery."
+
+        7 ->
             "Track your improvement — Focus on accuracy! Accuracy increases your mastery 4x faster than speed. Good luck!"
 
         _ ->
