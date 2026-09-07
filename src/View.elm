@@ -299,14 +299,12 @@ viewInfo info justLeveledUp =
             , if info.onboardingStep == 7 then viewOnboardingTooltip 7 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         , div [ class "mt-4 w-full flex justify-center relative" ]
-            [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
-            , if info.onboardingStep == 5 then viewOnboardingTooltip 5 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
-            ]
+            [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp info.onboardingStep ]
         ]
 
 
-viewProgression : Int -> Bool -> Html msg
-viewProgression idx justLeveledUp =
+viewProgression : Int -> Bool -> Int -> Html Msg
+viewProgression idx justLeveledUp onboardingStep =
     let
         effIdx =
             clamp 1 33 idx
@@ -332,8 +330,14 @@ viewProgression idx justLeveledUp =
                         else
                             "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
-                span [ id ("progression-letter-" ++ String.fromInt letterIdx), class ("transition-all duration-300 transform " ++ stateClasses) ]
-                    [ text (String.fromChar c) ]
+                span [ id ("progression-letter-" ++ String.fromInt letterIdx), class ("transition-all duration-300 transform relative " ++ stateClasses) ]
+                    (text (String.fromChar c) ::
+                        (if letterIdx == effIdx && onboardingStep == 5 then
+                            [ viewOnboardingTooltip 5 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down" ]
+                         else
+                            []
+                        )
+                    )
             )
             DictGen.learningSequence
         )
