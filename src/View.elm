@@ -818,10 +818,10 @@ onboardingText step =
             "Type the Latin keys, and they'll transform into Amharic characters. Try it!"
 
         3 ->
-            "Your progress — Each Amharic character family unlocks as your mastery improves. The highlighted character is your current lesson."
+            "Your progress — The underscored character is your current lesson. It unlocks the next one once you reach 85% mastery."
 
         5 ->
-            "Track your improvement — Speed, accuracy, and mastery update after each lesson. Visit the Stats page for more details."
+            "Track your improvement — Focus on accuracy! Accuracy increases your mastery 4x faster than speed. Good luck!"
 
         _ ->
             ""
