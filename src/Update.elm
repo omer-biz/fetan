@@ -162,6 +162,9 @@ update msg model =
 
                         ( finalLessonIdx, finalCompleted ) =
                             if isFinished then
+                                if model.dictationMode == PracticeMode then
+                                    ( (getCurrentLayoutData info).lessonIdx, (getCurrentLayoutData info).dictationsCompleted + 1 )
+                                else
                                 let
                                     baseLetter =
                                         getBaseLetterForLesson (getCurrentLayoutData info).lessonIdx
@@ -214,9 +217,25 @@ update msg model =
                 , justLeveledUp = if updates.didLevelUp then True else model.justLeveledUp
               }
             , if dict.current == Nothing then
+                let
+                    nextCmd =
+                        if model.dictationMode == PracticeMode then
+                            let
+                                sortedStats =
+                                    Dict.toList updates.nextStats
+                                        |> List.filter (\(_, stat) -> stat.count > 0)
+                                        |> List.sortBy (\(_, stat) -> -stat.latencyEma)
+                                        |> List.take 5
+                                        |> List.map Tuple.first
+                            in
+                            DictGen.genForWeaknesses sortedStats updates.nextLessonIdx
+                                |> Random.generate NewDict
+                        else
+                            DictGen.genForLevel updates.nextLessonIdx
+                                |> Random.generate NewDict
+                in
                 Cmd.batch
-                    [ DictGen.genForLevel updates.nextLessonIdx
-                        |> Random.generate NewDict
+                    [ nextCmd
                     , if updates.didLevelUp then Ports.triggerLevelUp (String.fromInt updates.nextLessonIdx) else Cmd.none
                     , if updates.didLevelUp then Task.perform (\_ -> ClearLevelUp) (Process.sleep 2000) else Cmd.none
                     ]
@@ -246,10 +265,12 @@ update msg model =
                         |> List.filter (\l -> l.wasWrong == False)
                         |> List.length
 
+                isCompleted =
+                    dictation.current == Nothing
+                    
                 newMetrics =
-                    if model.time /= 0 then
-                        -- initial run
-                        -- TODO: theoretically this could cause a race condition.
+                    if model.time /= 0 && isCompleted then
+                        -- only update global metrics if the dictation was fully completed
                         info.metrics
                             |> updateSpeed model.time lenChars
                             |> updateAccuracy lenChars correctChars
@@ -267,7 +288,7 @@ update msg model =
                     { info
                         | metrics = newMetrics
                         , history =
-                            if model.time /= 0 then
+                            if model.time /= 0 && isCompleted then
                                 let
                                     newRecord = { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = (getCurrentLayoutData info).lessonIdx, errors = model.currentErrors, layoutKind = info.layoutKind }
                                     newHistory = info.history ++ [ newRecord ]
@@ -531,11 +552,30 @@ update msg model =
                 cmd =
                     if newRoute == CommunityRoute then
                         Ports.fetchCommunityStats ()
-
+                    else if newRoute == PracticeRoute && model.dictationMode /= PracticeMode then
+                        let
+                            sortedStats =
+                                Dict.toList (getCurrentLayoutData model.info).letterStats
+                                    |> List.filter (\(_, stat) -> stat.count > 0)
+                                    |> List.sortBy (\(_, stat) -> -stat.latencyEma)
+                                    |> List.take 5
+                                    |> List.map Tuple.first
+                        in
+                        DictGen.genForWeaknesses sortedStats (getCurrentLayoutData model.info).lessonIdx |> Random.generate NewDict
+                    else if newRoute == TypingRoute && model.dictationMode /= LessonMode then
+                        DictGen.genForLevel (getCurrentLayoutData model.info).lessonIdx |> Random.generate NewDict
                     else
                         Cmd.none
+                
+                newMode =
+                    if newRoute == PracticeRoute then
+                        PracticeMode
+                    else if newRoute == TypingRoute then
+                        LessonMode
+                    else
+                        model.dictationMode
             in
-            ( { model | route = newRoute }, cmd )
+            ( { model | route = newRoute, dictationMode = newMode }, cmd )
 
         GoTo route ->
             let
@@ -549,6 +589,9 @@ update msg model =
 
                         CommunityRoute ->
                             "/#community"
+
+                        PracticeRoute ->
+                            "/#practice"
             in
             ( model, Nav.pushUrl model.navKey urlStr )
 
@@ -573,6 +616,30 @@ update msg model =
 
         ClearLevelUp ->
             ( { model | justLeveledUp = False }, Cmd.none )
+
+        StartPracticeMode ->
+            let
+                sortedStats =
+                    Dict.toList (getCurrentLayoutData model.info).letterStats
+                        |> List.filter (\(_, stat) -> stat.count > 0)
+                        |> List.sortBy (\(_, stat) -> -stat.latencyEma)
+                        |> List.take 5
+                        |> List.map Tuple.first
+            in
+            ( { model | dictationMode = PracticeMode }
+            , Cmd.batch 
+                [ DictGen.genForWeaknesses sortedStats (getCurrentLayoutData model.info).lessonIdx |> Random.generate NewDict
+                , Nav.pushUrl model.navKey "/#practice"
+                ]
+            )
+
+        StartLessonMode ->
+            ( { model | dictationMode = LessonMode }
+            , Cmd.batch 
+                [ DictGen.genForLevel (getCurrentLayoutData model.info).lessonIdx |> Random.generate NewDict
+                , Nav.pushUrl model.navKey "/"
+                ]
+            )
 
         _ ->
             ( model, Cmd.none )

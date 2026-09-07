@@ -96,6 +96,7 @@ init flags url navKey =
             , started = False
             , theme = themeStr
             , currentErrors = []
+            , dictationMode = LessonMode
             , navKey = navKey
             , route = routeFromUrl url
             , hoveringStats = []

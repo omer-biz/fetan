@@ -34,3 +34,5 @@ type Msg
     | CompleteLayoutSelection Layout.LayoutKind
     | SkipOnboarding
     | DismissOnboarding
+    | StartPracticeMode
+    | StartLessonMode

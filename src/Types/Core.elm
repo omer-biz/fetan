@@ -16,6 +16,11 @@ type Theme
     | Dark
 
 
+
+type DictationMode
+    = LessonMode
+    | PracticeMode
+
 type alias Model =
     { keyboard : Keyboard
     , dictation : Dictation
@@ -32,6 +37,7 @@ type alias Model =
     , started : Bool
     , theme : Theme
     , currentErrors : List String
+    , dictationMode : DictationMode
     , navKey : Nav.Key
     , route : Route
     , hoveringStats : List (CI.One { index : Float, record : SessionRecord } CI.Dot)
@@ -41,11 +47,13 @@ type alias Model =
     }
 
 
+
+
 type Route
     = TypingRoute
+    | PracticeRoute
     | StatsRoute
     | CommunityRoute
-
 
 routeFromUrl : Url -> Route
 routeFromUrl url =
@@ -54,6 +62,9 @@ routeFromUrl url =
 
     else if url.fragment == Just "community" then
         CommunityRoute
+
+    else if url.fragment == Just "practice" then
+        PracticeRoute
 
     else
         TypingRoute

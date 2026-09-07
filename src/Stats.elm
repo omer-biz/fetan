@@ -2,6 +2,7 @@ module Stats exposing (AggregateStats, SessionRecord, LetterStat, StatsData, vie
 
 import Html exposing (Html)
 import Html.Attributes exposing (class)
+import Html.Events
 import Dict exposing (Dict)
 import Time
 import Set
@@ -86,8 +87,8 @@ viewAggregateStats title agg =
             ]
         ]
 
-viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar) -> msg) -> Html msg
-viewStats data onHover onHoverMastery =
+viewStats : StatsData -> (List (CI.One { index : Float, record : SessionRecord } CI.Dot) -> msg) -> (List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar) -> msg) -> msg -> Html msg
+viewStats data onHover onHoverMastery onClickStartPractice =
     Html.div [ class "w-full max-w-[1000px] flex flex-col flex-1 mt-8 gap-8 pb-16" ]
         [ Html.div [ class "flex items-center justify-between" ]
             [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ Html.text "Performance Stats" ]
@@ -146,6 +147,16 @@ viewStats data onHover onHoverMastery =
                 ]
             , Html.div [ class "flex-1 w-full" ]
                 [ viewMasteryChart data onHoverMastery ]
+            , if (List.length data.history) >= 5 then
+                Html.div [ class "mt-8 flex justify-center w-full" ]
+                    [ Html.button
+                        [ Html.Events.onClick onClickStartPractice
+                        , class "flex items-center gap-2 bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white px-6 py-3 rounded-full font-bold shadow-md hover:shadow-lg transition-all"
+                        ]
+                        [ Html.text "Practice Weaknesses" ]
+                    ]
+              else
+                Html.text ""
             ]
         ]
 

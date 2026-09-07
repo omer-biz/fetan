@@ -28,6 +28,7 @@ import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 import Types.Msg exposing (..)
 
+
 sunIcon : Html msg
 sunIcon =
     svg
@@ -84,6 +85,7 @@ closeIcon =
         [ Svg.path [ SvgAttr.d "M6 18L18 6M6 6l12 12" ] []
         ]
 
+
 communityIcon : Html msg
 communityIcon =
     Svg.svg
@@ -99,6 +101,26 @@ communityIcon =
         , Svg.circle [ SvgAttr.cx "9", SvgAttr.cy "7", SvgAttr.r "4" ] []
         , Svg.path [ SvgAttr.d "M23 21v-2a4 4 0 0 0-3-3.87" ] []
         , Svg.path [ SvgAttr.d "M16 3.13a4 4 0 0 1 0 7.75" ] []
+        ]
+
+
+practiceIcon : Html msg
+practiceIcon =
+    Svg.svg
+        [ SvgAttr.width "24"
+        , SvgAttr.height "24"
+        , SvgAttr.viewBox "0 0 24 24"
+        , SvgAttr.fill "none"
+        , SvgAttr.stroke "currentColor"
+        , SvgAttr.strokeWidth "2"
+        , SvgAttr.strokeLinecap "round"
+        , SvgAttr.strokeLinejoin "round"
+        ]
+        [ Svg.path [ SvgAttr.d "M14.4 14.4l5.6 5.6" ] []
+        , Svg.path [ SvgAttr.d "M4 4l5.6 5.6" ] []
+        , Svg.path [ SvgAttr.d "M14.4 9.6l-4.8 4.8" ] []
+        , Svg.path [ SvgAttr.d "M20 12l2-2-4-4-2 2" ] []
+        , Svg.path [ SvgAttr.d "M12 20l-2 2-4-4 2-2" ] []
         ]
 
 
@@ -139,7 +161,18 @@ viewHeader model =
 
               else
                 Html.div [ class "flex items-center gap-3" ]
-                    [ Html.button
+                    [ if List.length model.info.history >= 5 then
+                        Html.button
+                            [ Html.Events.onClick StartPracticeMode
+                            , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center group relative"
+                            ]
+                            [ practiceIcon
+                            , Html.span [ class "absolute -bottom-8 right-0 bg-stone-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity" ] [ text "Practice Weaknesses" ]
+                            ]
+
+                      else
+                        text ""
+                    , Html.button
                         [ Html.Events.onClick (GoTo StatsRoute)
                         , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
                         ]
@@ -159,25 +192,33 @@ view : Model -> Browser.Document Msg
 view model =
     { title = "qelm"
     , body =
-        [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full overflow-x-hidden" ]
+        [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
             [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
                 [ viewHeader model
                 , if model.route == StatsRoute then
-                    Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime, zone = model.zone, aggregate = model.info.aggregate } OnHoverStats OnHoverMastery
+                    Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime, zone = model.zone, aggregate = model.info.aggregate } OnHoverStats OnHoverMastery StartPracticeMode
 
                   else if model.route == CommunityRoute then
                     Html.map CommunityMsg (Community.view model.communityData)
 
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
-                        [ viewInfo model.info model.justLeveledUp
+                        [ viewInfo model.info model.justLeveledUp model.dictationMode
                         , div [ class "relative w-full" ]
                             [ viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
-                            , if model.info.onboardingStep == 1 then viewOnboardingTooltip 1 "bottom-full left-1/2 -translate-x-1/2 mb-2" "down" else text ""
+                            , if model.info.onboardingStep == 1 then
+                                viewOnboardingTooltip 1 "bottom-full left-1/2 -translate-x-1/2 mb-2" "down"
+
+                              else
+                                text ""
                             ]
                         , viewKeyBoard model.keyboard model.info.onboardingStep
                         ]
-                , if model.info.onboardingStep == 0 then viewOnboardingOverlay else text ""
+                , if model.info.onboardingStep == 0 then
+                    viewOnboardingOverlay
+
+                  else
+                    text ""
                 ]
             , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
                 [ text "an open-source project | made by "
@@ -291,15 +332,32 @@ layoutInfo kind =
             )
 
 
-viewInfo : Info -> Bool -> Html Msg
-viewInfo info justLeveledUp =
+viewInfo : Info -> Bool -> DictationMode -> Html Msg
+viewInfo info justLeveledUp dictationMode =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px] relative" ]
-        [ div [ class "relative w-full" ] 
-            [ viewMetrics info 
-            , if info.onboardingStep == 7 then viewOnboardingTooltip 7 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
+        [ div [ class "relative w-full" ]
+            [ viewMetrics info dictationMode
+            , if info.onboardingStep == 7 then
+                viewOnboardingTooltip 7 "top-full mt-2 left-1/2 -translate-x-1/2" "up"
+
+              else
+                text ""
             ]
         , div [ class "mt-4 w-full flex justify-center relative" ]
-            [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp info.onboardingStep ]
+            [ if dictationMode == PracticeMode then
+                div [ class "flex items-center gap-4 bg-amber-50 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-6 py-2 rounded-full border border-amber-200 dark:border-amber-800" ]
+                    [ span [ class "font-bold text-sm tracking-wide uppercase flex items-center gap-2" ]
+                        [ text "Practice Mode Active" ]
+                    , button
+                        [ onClick StartLessonMode
+                        , class "text-xs font-semibold bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 px-3 py-1 rounded shadow-sm border border-stone-200 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-700 transition-colors"
+                        ]
+                        [ text "Return to Lessons" ]
+                    ]
+
+              else
+                viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp info.onboardingStep
+            ]
         ]
 
 
@@ -331,20 +389,21 @@ viewProgression idx justLeveledUp onboardingStep =
                             "text-stone-400 dark:text-stone-500 tracking-wide font-normal opacity-80"
                 in
                 span [ id ("progression-letter-" ++ String.fromInt letterIdx), class ("transition-all duration-300 transform relative " ++ stateClasses) ]
-                    (text (String.fromChar c) ::
-                        (if letterIdx == effIdx && onboardingStep == 5 then
-                            [ viewOnboardingTooltip 5 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down" ]
-                         else
-                            []
-                        )
+                    (text (String.fromChar c)
+                        :: (if letterIdx == effIdx && onboardingStep == 5 then
+                                [ viewOnboardingTooltip 5 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down" ]
+
+                            else
+                                []
+                           )
                     )
             )
             DictGen.learningSequence
         )
 
 
-viewMetrics : Info -> Html msg
-viewMetrics info =
+viewMetrics : Info -> DictationMode -> Html msg
+viewMetrics info dictationMode =
     let
         metrics =
             info.metrics
@@ -394,10 +453,10 @@ viewMetrics info =
                 ]
     in
     div [ class "flex flex-wrap justify-center gap-3 md:gap-6 w-full" ]
-        [ viewMetric "Speed" (String.fromInt metrics.speed.new) "wpm" ""
-        , viewMetric "Accuracy" (String.fromInt metrics.accuracy.new) "%" ""
-        , viewMetric "Mastery" confStr "%" "Mastery reflects how consistently and quickly you can type this lesson's characters."
-        ]
+        ( [ viewMetric "Speed" (String.fromInt metrics.speed.new) "wpm" ""
+          , viewMetric "Accuracy" (String.fromInt metrics.accuracy.new) "%" ""
+          ] ++ (if dictationMode == PracticeMode then [] else [ viewMetric "Mastery" confStr "%" "Mastery reflects how consistently and quickly you can type this lesson's characters." ])
+        )
 
 
 viewDictation : Bool -> Dictation -> Int -> Html Msg
@@ -483,7 +542,7 @@ viewDictation isFocused dict onboardingStep =
                 text ""
     in
     Keyed.node "div"
-        [ class "relative whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none outline-none focus:outline-none" 
+        [ class "relative whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none outline-none focus:outline-none"
         , Html.Attributes.id "dictation-area"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
@@ -492,29 +551,35 @@ viewDictation isFocused dict onboardingStep =
         , onKeyDownPreventDefault
         , onKeyUpPreventDefault
         ]
-        ( ("focus-overlay", isfocused) 
-        :: List.indexedMap viewLetter allLetters )
+        (( "focus-overlay", isfocused )
+            :: List.indexedMap viewLetter allLetters
+        )
 
 
 dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
 dispatchHelper modMsg regularMsg key =
     if String.startsWith "Shift" key.code || String.startsWith "Alt" key.code || String.startsWith "Control" key.code || String.startsWith "Meta" key.code then
         modMsg key.code
+
     else
         regularMsg key
+
 
 dispatchDown : KeyEvent -> Msg
 dispatchDown =
     dispatchHelper ModKeyDown KeyDown
 
+
 dispatchUp : KeyEvent -> Msg
 dispatchUp =
     dispatchHelper ModKeyUp KeyUp
+
 
 onKeyDownPreventDefault : Html.Attribute Msg
 onKeyDownPreventDefault =
     preventDefaultOn "keydown" <|
         Decode.map (\keyEvent -> ( dispatchDown keyEvent, True )) Storage.keyDecoder
+
 
 onKeyUpPreventDefault : Html.Attribute Msg
 onKeyUpPreventDefault =
@@ -738,6 +803,7 @@ viewKey modifier key onboardingStep =
         [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
         [ if key.state == Hinted && onboardingStep == 3 then
             viewOnboardingTooltip 3 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down"
+
           else
             text ""
         , if isActiveCaps then
@@ -806,6 +872,7 @@ viewOnboardingTooltip step position arrowDirection =
                     [ text "Got it" ]
                 ]
             ]
+
          else
             [ div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
                 [ p [ class "mb-3" ] [ text (onboardingText step) ]
@@ -818,6 +885,7 @@ viewOnboardingTooltip step position arrowDirection =
             , div [ class "w-0 h-0 mx-auto border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-slate-700 dark:border-t-slate-200 mt-0" ] []
             ]
         )
+
 
 onboardingText : Int -> String
 onboardingText step =
@@ -837,11 +905,12 @@ onboardingText step =
         _ ->
             ""
 
+
 viewOnboardingOverlay : Html Msg
 viewOnboardingOverlay =
     div [ class "fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm" ]
         [ div [ class "relative bg-white dark:bg-stone-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border border-stone-200 dark:border-stone-700 animate-tooltip-enter" ]
-            [ button 
+            [ button
                 [ onClick SkipOnboarding
                 , class "absolute top-4 right-4 text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700/50"
                 , Html.Attributes.title "Skip onboarding"
@@ -849,31 +918,67 @@ viewOnboardingOverlay =
                 [ closeIcon ]
             , h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
             , p [ class "text-stone-500 dark:text-stone-400 mb-8 text-center" ] [ text "Choose your typing layout to begin." ]
-            
             , div [ class "space-y-4 mb-8" ]
                 [ viewLayoutOption Layout.GeezIME "GeezIME (Recommended)" "Type Latin sequences (like 'he', 'hu') to form Ethiopic characters." True
                 , viewLayoutOption Layout.SilPowerG "SIL Power-G" "Phonetic mapping based on sound." False
                 , viewLayoutOption Layout.PowerGeez "PowerGeez" "Legacy typing system." False
                 ]
-                
             , div [ class "flex justify-center" ]
-                [ button 
+                [ button
                     [ onClick SkipOnboarding
                     , class "text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 underline underline-offset-4"
-                    ] 
+                    ]
                     [ text "I already know how to use Qelm (Skip Onboarding)" ]
                 ]
             ]
         ]
 
+
 viewLayoutOption : Layout.LayoutKind -> String -> String -> Bool -> Html Msg
 viewLayoutOption kind title desc recommended =
-    button 
+    let
+        icon =
+            case kind of
+                Layout.GeezIME ->
+                    Html.img [ Html.Attributes.src "/layouts/geezime.png", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
+
+                Layout.PowerGeez ->
+                    Html.img [ Html.Attributes.src "/layouts/powergeez.png", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
+
+                Layout.SilPowerG ->
+                    Svg.svg [ SvgAttr.viewBox "0 0 40 40", SvgAttr.class "w-10 h-10 rounded shadow-sm flex-shrink-0" ]
+                        [ Svg.rect [ SvgAttr.width "40", SvgAttr.height "40", SvgAttr.fill "#0f766e", SvgAttr.rx "8" ] []
+                        , Svg.text_ [ SvgAttr.x "20", SvgAttr.y "26", SvgAttr.fill "#ffffff", SvgAttr.fontSize "16", SvgAttr.fontWeight "bold", SvgAttr.textAnchor "middle", SvgAttr.fontFamily "sans-serif" ] [ Svg.text "SIL" ]
+                        ]
+    in
+    button
         [ onClick (CompleteLayoutSelection kind)
-        , class ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex flex-col gap-1 " ++ (if recommended then "border-slate-400 dark:border-slate-500 bg-slate-100/50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm" else "border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50"))
+        , class
+            ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex items-start gap-4 "
+                ++ (if recommended then
+                        "border-slate-400 dark:border-slate-500 bg-slate-100/50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm"
+
+                    else
+                        "border-stone-200 dark:border-stone-700 hover:border-stone-300 dark:hover:border-stone-500 hover:bg-stone-50 dark:hover:bg-stone-800/50"
+                   )
+            )
         ]
-        [ div [ class "flex items-center gap-2" ]
-            [ span [ class ("font-semibold text-lg " ++ (if recommended then "text-slate-800 dark:text-slate-200" else "text-stone-700 dark:text-stone-300")) ] [ text title ]
+        [ icon
+        , div [ class "flex flex-col gap-1" ]
+            [ div [ class "flex items-center gap-2" ]
+                [ span
+                    [ class
+                        ("font-semibold text-lg "
+                            ++ (if recommended then
+                                    "text-slate-800 dark:text-slate-200"
+
+                                else
+                                    "text-stone-700 dark:text-stone-300"
+                               )
+                        )
+                    ]
+                    [ text title ]
+                ]
+            , span [ class "text-sm text-stone-500 dark:text-stone-400" ] [ text desc ]
             ]
-        , span [ class "text-sm text-stone-500 dark:text-stone-400" ] [ text desc ]
         ]
