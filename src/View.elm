@@ -171,7 +171,10 @@ view model =
                   else
                     div [ class "w-full max-w-[800px] flex flex-col items-center flex-1 justify-center -mt-16" ]
                         [ viewInfo model.info model.justLeveledUp
-                        , viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
+                        , div [ class "relative w-full" ]
+                            [ viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
+                            , if model.info.onboardingStep == 1 then viewOnboardingTooltip 1 "top-full left-1/2 -translate-x-1/2 mt-1" else text ""
+                            ]
                         , viewKeyBoard model.keyboard
                         ]
                 , if model.info.onboardingStep == 0 then viewOnboardingOverlay else text ""
@@ -477,6 +480,7 @@ viewDictation isFocused dict onboardingStep =
     in
     Keyed.node "div"
         [ class "relative whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none outline-none focus:outline-none" 
+        , Html.Attributes.id "dictation-area"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0
@@ -485,7 +489,6 @@ viewDictation isFocused dict onboardingStep =
         , onKeyUpPreventDefault
         ]
         ( ("focus-overlay", isfocused) 
-        :: ("onboarding-1", if onboardingStep == 1 then viewOnboardingTooltip 1 "-bottom-16 left-1/2 -translate-x-1/2" else text "") 
         :: List.indexedMap viewLetter allLetters )
 
 
@@ -784,7 +787,9 @@ specialKeys =
 viewOnboardingTooltip : Int -> String -> Html Msg
 viewOnboardingTooltip step position =
     div [ class ("absolute z-30 " ++ position) ]
-        [ div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
+        [ -- Arrow pointing up at the element above
+          div [ class "w-0 h-0 mx-auto border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-slate-700 dark:border-b-slate-200 mb-0" ] []
+        , div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
             [ p [ class "mb-3" ] [ text (onboardingText step) ]
             , button
                 [ onClick DismissOnboarding

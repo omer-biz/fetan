@@ -2,6 +2,7 @@ module Update exposing (..)
 
 import Array
 import Browser
+import Browser.Dom
 import Browser.Navigation as Nav
 import Community
 import Dict exposing (Dict)
@@ -470,7 +471,12 @@ update msg model =
                 newModel =
                     { model | info = newInfo, layoutKind = kind, currentLayout = newLayout, keyboard = newKeyboard }
             in
-            ( newModel, Ports.saveInfo (Storage.encodeInfo newInfo) )
+            ( newModel
+            , Cmd.batch
+                [ Ports.saveInfo (Storage.encodeInfo newInfo)
+                , Task.attempt (\_ -> NoOp) (Browser.Dom.focus "dictation-area")
+                ]
+            )
             
         SkipOnboarding ->
             let
