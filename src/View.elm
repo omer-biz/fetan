@@ -173,7 +173,7 @@ view model =
                         [ viewInfo model.info model.justLeveledUp
                         , div [ class "relative w-full" ]
                             [ viewDictation model.keyboard.focusKeyBr model.dictation model.info.onboardingStep
-                            , if model.info.onboardingStep == 1 then viewOnboardingTooltip 1 "top-full left-1/2 -translate-x-1/2 mt-1" else text ""
+                            , if model.info.onboardingStep == 1 then viewOnboardingTooltip 1 "bottom-full left-1/2 -translate-x-1/2 mb-2" "down" else text ""
                             ]
                         , viewKeyBoard model.keyboard
                         ]
@@ -296,11 +296,11 @@ viewInfo info justLeveledUp =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px] relative" ]
         [ div [ class "relative w-full" ] 
             [ viewMetrics info 
-            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "-bottom-20 left-1/2 -translate-x-1/2" else text ""
+            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         , div [ class "mt-4 w-full flex justify-center relative" ]
             [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
-            , if info.onboardingStep == 2 then viewOnboardingTooltip 2 "-bottom-20 left-1/2 -translate-x-1/2" else text ""
+            , if info.onboardingStep == 2 then viewOnboardingTooltip 2 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         ]
 
@@ -784,20 +784,32 @@ specialKeys =
         ]
 
 
-viewOnboardingTooltip : Int -> String -> Html Msg
-viewOnboardingTooltip step position =
+viewOnboardingTooltip : Int -> String -> String -> Html Msg
+viewOnboardingTooltip step position arrowDirection =
     div [ class ("absolute z-30 " ++ position) ]
-        [ -- Arrow pointing up at the element above
-          div [ class "w-0 h-0 mx-auto border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-slate-700 dark:border-b-slate-200 mb-0" ] []
-        , div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
-            [ p [ class "mb-3" ] [ text (onboardingText step) ]
-            , button
-                [ onClick DismissOnboarding
-                , class "px-3 py-1 bg-slate-600 hover:bg-slate-500 dark:bg-slate-300 dark:hover:bg-slate-400 rounded text-xs font-medium text-white dark:text-stone-900 transition-colors"
+        (if arrowDirection == "up" then
+            [ div [ class "w-0 h-0 mx-auto border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-slate-700 dark:border-b-slate-200 mb-0" ] []
+            , div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
+                [ p [ class "mb-3" ] [ text (onboardingText step) ]
+                , button
+                    [ onClick DismissOnboarding
+                    , class "px-3 py-1 bg-slate-600 hover:bg-slate-500 dark:bg-slate-300 dark:hover:bg-slate-400 rounded text-xs font-medium text-white dark:text-stone-900 transition-colors"
+                    ]
+                    [ text "Got it" ]
                 ]
-                [ text "Got it" ]
             ]
-        ]
+         else
+            [ div [ class "bg-slate-700 dark:bg-slate-200 text-white dark:text-stone-800 text-sm leading-relaxed rounded-lg shadow-xl p-4 max-w-xs w-64 animate-tooltip-enter" ]
+                [ p [ class "mb-3" ] [ text (onboardingText step) ]
+                , button
+                    [ onClick DismissOnboarding
+                    , class "px-3 py-1 bg-slate-600 hover:bg-slate-500 dark:bg-slate-300 dark:hover:bg-slate-400 rounded text-xs font-medium text-white dark:text-stone-900 transition-colors"
+                    ]
+                    [ text "Got it" ]
+                ]
+            , div [ class "w-0 h-0 mx-auto border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-slate-700 dark:border-t-slate-200 mt-0" ] []
+            ]
+        )
 
 onboardingText : Int -> String
 onboardingText step =
