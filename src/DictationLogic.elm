@@ -2,9 +2,7 @@ module DictationLogic exposing (..)
 
 import Dict exposing (Dict)
 import Array
-import Array
 import Dictation as DictGen
-import Array
 import Models.Layout as Layout exposing (Layout)
 import Stats exposing (LetterStat)
 import Types.Core exposing (..)

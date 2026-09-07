@@ -4,22 +4,23 @@ import Url exposing (Url)
 
 
 type Route
-    = Home
-    | Stats
-    | NotFound
+    = TypingRoute
+    | PracticeRoute
+    | StatsRoute
+    | CommunityRoute
 
 
 routeFromUrl : Url -> Route
 routeFromUrl url =
     case url.fragment of
-        Just "" ->
-            Home
-
         Just "stats" ->
-            Stats
+            StatsRoute
 
-        Nothing ->
-            Home
+        Just "community" ->
+            CommunityRoute
+
+        Just "practice" ->
+            PracticeRoute
 
         _ ->
-            NotFound
+            TypingRoute

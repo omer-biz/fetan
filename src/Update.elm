@@ -1,6 +1,5 @@
 module Update exposing (..)
 
-import Array
 import Browser
 import Browser.Dom
 import Browser.Navigation as Nav
@@ -8,19 +7,17 @@ import Community
 import Dict exposing (Dict)
 import Dictation as DictGen
 import DictationLogic exposing (..)
-import Json.Decode as Decode
 import Json.Encode as Encode
-import Models.Layout as Layout exposing (Layout(..))
+import Models.Layout as Layout
 import Ports
 import Process
 import Random
-import Routing exposing (Route(..))
-import Stats exposing (LetterStat, SessionRecord)
+import Routing exposing (Route(..), routeFromUrl)
+import Stats exposing (LetterStat)
 import Storage
 import Task
 import Time
 import Types.Core exposing (..)
-import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 import Types.Msg exposing (..)
 import Url exposing (Url)
@@ -39,9 +36,6 @@ update msg model =
 
         dictation =
             model.dictation
-
-        metrics =
-            info.metrics
 
         updateKey key state =
             updateFirstOccurrence
@@ -104,6 +98,16 @@ update msg model =
                 ( model, Cmd.none )
             else
             let
+                eventTime =
+                    model.timeOrigin + keyEvent.timeStamp
+
+                elapsedTime =
+                    if model.started then
+                        max 0 ((eventTime - model.sessionStartTime) / 1000)
+
+                    else
+                        model.time
+
                 ( dict, layout, attemptResult ) =
                     updateDictation keyEvent.code keyboard.modifier model.currentLayout dictation
 
@@ -133,29 +137,18 @@ update msg model =
                                     ( (getCurrentLayoutData info).letterStats, model.lastSuccessTime )
 
                                 WasWrong ->
-                                    let
-                                        newStat =
-                                            { oldStat | errorEma = 0.1 * 1.0 + 0.9 * oldStat.errorEma }
-                                    in
-                                    ( Dict.insert targetLetter newStat (getCurrentLayoutData info).letterStats, model.lastSuccessTime )
+                                    ( Dict.insert targetLetter (updateLetterStat WasWrong 0 oldStat) (getCurrentLayoutData info).letterStats
+                                    , model.lastSuccessTime
+                                    )
 
                                 WasCorrect ->
                                     let
                                         latency =
                                             keyEvent.timeStamp - model.lastSuccessTime
-
-                                        newStat =
-                                            if oldStat.count == 0 then
-                                                { oldStat | count = 1, latencyEma = latency, errorEma = 0 }
-
-                                            else
-                                                { oldStat
-                                                    | count = oldStat.count + 1
-                                                    , latencyEma = 0.1 * latency + 0.9 * oldStat.latencyEma
-                                                    , errorEma = 0.9 * oldStat.errorEma
-                                                }
                                     in
-                                    ( Dict.insert targetLetter newStat (getCurrentLayoutData info).letterStats, keyEvent.timeStamp )
+                                    ( Dict.insert targetLetter (updateLetterStat WasCorrect latency oldStat) (getCurrentLayoutData info).letterStats
+                                    , keyEvent.timeStamp
+                                    )
 
                         isFinished =
                             dict.current == Nothing
@@ -181,7 +174,7 @@ update msg model =
                                     conf =
                                         0.5 + (accuracyScore * 0.4) + (speedScore * 0.1)
                                 in
-                                if stat.count >= 15 && conf > 0.85 && (getCurrentLayoutData info).lessonIdx < 34 then
+                                if stat.count >= 15 && conf > 0.85 && (getCurrentLayoutData info).lessonIdx < DictGen.lessonCount then
                                     ( (getCurrentLayoutData info).lessonIdx + 1, 0 )
 
                                 else
@@ -213,6 +206,8 @@ update msg model =
                         )
                         info
                 , lastSuccessTime = updates.newLastSuccessTime
+                , time = elapsedTime
+                , currentTime = eventTime
                 , currentErrors = newErrors
                 , justLeveledUp = if updates.didLevelUp then True else model.justLeveledUp
               }
@@ -267,16 +262,16 @@ update msg model =
 
                 isCompleted =
                     dictation.current == Nothing
+
+                completedSession =
+                    model.time > 0 && isCompleted
                     
-                newMetrics =
-                    if model.time /= 0 && isCompleted then
-                        -- only update global metrics if the dictation was fully completed
-                        info.metrics
-                            |> updateSpeed model.time lenChars
-                            |> updateAccuracy lenChars correctChars
+                finalizedInfo =
+                    if completedSession then
+                        finalizeSessionInfo model.time model.currentTime lenChars correctChars model.currentErrors info
 
                     else
-                        metrics
+                        info
             in
             ( { model
                 | dictation = stringToDictation dict
@@ -284,43 +279,9 @@ update msg model =
                 , lastKeyEvent = 0
                 , started = False
                 , currentErrors = []
-                , info =
-                    { info
-                        | metrics = newMetrics
-                        , history =
-                            if model.time /= 0 && isCompleted then
-                                let
-                                    newRecord = { timestamp = model.currentTime, duration = model.time, wpm = newMetrics.speed.new, accuracy = newMetrics.accuracy.new, lessonIdx = (getCurrentLayoutData info).lessonIdx, errors = model.currentErrors, layoutKind = info.layoutKind }
-                                    newHistory = info.history ++ [ newRecord ]
-                                in
-                                List.drop (max 0 (List.length newHistory - 200)) newHistory
-
-                            else
-                                info.history
-                        , aggregate =
-                            if model.time /= 0 then
-                                { totalDuration = info.aggregate.totalDuration + model.time
-                                , totalSessions = info.aggregate.totalSessions + 1
-                                , topWpm = max info.aggregate.topWpm newMetrics.speed.new
-                                , topAccuracy = max info.aggregate.topAccuracy newMetrics.accuracy.new
-                                , sumWpm = info.aggregate.sumWpm + newMetrics.speed.new
-                                , sumAccuracy = info.aggregate.sumAccuracy + newMetrics.accuracy.new
-                                }
-                            else
-                                info.aggregate
-                        , onboardingStep =
-                            if model.time /= 0 then
-                                if info.onboardingStep == 4 then
-                                    5
-                                else if info.onboardingStep == 6 then
-                                    7
-                                else
-                                    info.onboardingStep
-                            else
-                                info.onboardingStep
-                    }
+                , info = finalizedInfo
               }
-            , if model.time == 0 then
+            , if not completedSession then
                 Cmd.none
 
               else
@@ -335,8 +296,8 @@ update msg model =
 
                     payload =
                         Encode.object
-                            [ ( "wpm", Encode.int newMetrics.speed.new )
-                            , ( "accuracy", Encode.int newMetrics.accuracy.new )
+                            [ ( "wpm", Encode.int finalizedInfo.metrics.speed.new )
+                            , ( "accuracy", Encode.int finalizedInfo.metrics.accuracy.new )
                             , ( "duration", Encode.float model.time )
                             , ( "lessonIdx", Encode.int (getCurrentLayoutData info).lessonIdx )
                             , ( "slowestLetter", Encode.string slowestLetter )
@@ -344,8 +305,12 @@ update msg model =
                             ]
                 in
                 Cmd.batch
-                    [ Ports.saveInfo <| Storage.encodeInfo { info | metrics = newMetrics }
-                    , Ports.trackEvent payload
+                    [ Ports.saveInfo (Storage.encodeInfo finalizedInfo)
+                    , if model.analyticsConsent then
+                        Ports.trackEvent payload
+
+                      else
+                        Cmd.none
                     ]
             )
 
@@ -376,7 +341,7 @@ update msg model =
             ( { model
                 | time =
                     if model.started then
-                        model.time + 1
+                        max 0 ((nowMillis - model.sessionStartTime) / 1000)
 
                     else
                         0
@@ -513,7 +478,8 @@ update msg model =
 
         DismissOnboarding ->
             let
-                newInfo = { info | onboardingStep = info.onboardingStep + 1 }
+                newInfo =
+                    { info | onboardingStep = nextOnboardingStep info.onboardingStep }
             in
             ( { model | info = newInfo }, Ports.saveInfo (Storage.encodeInfo newInfo) )
 
@@ -534,6 +500,11 @@ update msg model =
                  else
                     "light"
                 )
+            )
+
+        ToggleAnalyticsConsent consent ->
+            ( { model | analyticsConsent = consent }
+            , Ports.saveAnalyticsConsent consent
             )
 
         UrlRequested urlRequest ->
@@ -643,6 +614,96 @@ update msg model =
 
         _ ->
             ( model, Cmd.none )
+
+
+finalizeSessionInfo : Float -> Float -> Int -> Int -> List String -> Info -> Info
+finalizeSessionInfo duration timestamp totalChars correctChars errors info =
+    let
+        newMetrics =
+            info.metrics
+                |> updateSpeed duration totalChars
+                |> updateAccuracy totalChars correctChars
+
+        newRecord =
+            { timestamp = timestamp
+            , duration = duration
+            , wpm = newMetrics.speed.new
+            , accuracy = newMetrics.accuracy.new
+            , lessonIdx = (getCurrentLayoutData info).lessonIdx
+            , errors = errors
+            , layoutKind = info.layoutKind
+            }
+
+        newHistory =
+            info.history ++ [ newRecord ]
+
+        nextOnboarding =
+            if info.onboardingStep == 4 then
+                5
+
+            else if info.onboardingStep == 6 then
+                7
+
+            else
+                info.onboardingStep
+    in
+    { info
+        | metrics = newMetrics
+        , history = List.drop (max 0 (List.length newHistory - 200)) newHistory
+        , aggregate =
+            { totalDuration = info.aggregate.totalDuration + duration
+            , totalSessions = info.aggregate.totalSessions + 1
+            , topWpm = max info.aggregate.topWpm newMetrics.speed.new
+            , topAccuracy = max info.aggregate.topAccuracy newMetrics.accuracy.new
+            , sumWpm = info.aggregate.sumWpm + newMetrics.speed.new
+            , sumAccuracy = info.aggregate.sumAccuracy + newMetrics.accuracy.new
+            }
+        , onboardingStep = nextOnboarding
+    }
+
+
+nextOnboardingStep : Int -> Int
+nextOnboardingStep step =
+    case step of
+        1 ->
+            3
+
+        3 ->
+            4
+
+        5 ->
+            6
+
+        7 ->
+            8
+
+        _ ->
+            min 8 (step + 1)
+
+
+updateLetterStat : AttemptResult -> Float -> LetterStat -> LetterStat
+updateLetterStat attemptResult latency stat =
+    case attemptResult of
+        WasWrong ->
+            { stat | errorEma = 0.1 + 0.9 * stat.errorEma }
+
+        WasCorrect ->
+            if stat.count == 0 then
+                { stat
+                    | count = 1
+                    , latencyEma = latency
+                    , errorEma = 0.9 * stat.errorEma
+                }
+
+            else
+                { stat
+                    | count = stat.count + 1
+                    , latencyEma = 0.1 * latency + 0.9 * stat.latencyEma
+                    , errorEma = 0.9 * stat.errorEma
+                }
+
+        _ ->
+            stat
 
 
 hintMod : List String -> Key -> Key

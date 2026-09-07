@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 elm-stuff/**
+
+# Test output
+coverage/
+playwright-report/
+test-results/

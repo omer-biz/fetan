@@ -1,6 +1,7 @@
 module Dictation exposing
     ( genForLevel
     , genForWeaknesses
+    , lessonCount
     , learningSequence
     )
 
@@ -14,11 +15,16 @@ learningSequence =
     [ 'መ', 'ተ', 'በ', 'ነ', 'ረ', 'ለ', 'የ', 'ወ', 'ሰ', 'አ', 'ከ', 'ደ', 'ገ', 'ሀ', 'ቀ', 'ቸ', 'ፈ', 'ጠ', 'ዘ', 'ጀ', 'ኘ', 'ሸ', 'ጨ', 'ሐ', 'ሠ', 'ዐ', 'ጸ', 'ፀ', 'ፐ', 'ጰ', 'ኀ', 'ዠ', 'ኸ', 'ቨ' ]
 
 
+lessonCount : Int
+lessonCount =
+    List.length learningSequence
+
+
 genForLevel : Int -> Generator String
 genForLevel level =
     let
         effLevel =
-            clamp 1 33 level
+            clamp 1 lessonCount level
 
         wordsList =
             Dict.get effLevel Words.byLesson
@@ -47,7 +53,7 @@ genForWeaknesses : List String -> Int -> Generator String
 genForWeaknesses weakLetters currentLesson =
     let
         effLevel =
-            clamp 1 33 currentLesson
+            clamp 1 lessonCount currentLesson
 
         -- Gather all words up to the current lesson
         availableWords =

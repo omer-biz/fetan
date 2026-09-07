@@ -1,4 +1,4 @@
-module Stats exposing (AggregateStats, SessionRecord, LetterStat, StatsData, viewStats)
+module Stats exposing (AggregateStats, LetterStat, SessionRecord, StatsData, aggregateForDate, aggregateSessions, emptyAggregate, viewStats)
 
 import Html exposing (Html)
 import Html.Attributes exposing (class)
@@ -46,6 +46,55 @@ type alias StatsData =
     , aggregate : AggregateStats
     }
 
+
+emptyAggregate : AggregateStats
+emptyAggregate =
+    { totalDuration = 0
+    , totalSessions = 0
+    , topWpm = 0
+    , topAccuracy = 0
+    , sumWpm = 0
+    , sumAccuracy = 0
+    }
+
+
+aggregateSessions : List SessionRecord -> AggregateStats
+aggregateSessions =
+    List.foldl
+        (\record aggregate ->
+            { totalDuration = aggregate.totalDuration + record.duration
+            , totalSessions = aggregate.totalSessions + 1
+            , topWpm = max aggregate.topWpm record.wpm
+            , topAccuracy = max aggregate.topAccuracy record.accuracy
+            , sumWpm = aggregate.sumWpm + record.wpm
+            , sumAccuracy = aggregate.sumAccuracy + record.accuracy
+            }
+        )
+        emptyAggregate
+
+
+aggregateForDate : Time.Zone -> Float -> List SessionRecord -> AggregateStats
+aggregateForDate zone currentTime history =
+    let
+        currentPosix =
+            Time.millisToPosix (round currentTime)
+
+        isSameDate record =
+            let
+                recordPosix =
+                    Time.millisToPosix (round record.timestamp)
+            in
+            Time.toYear zone recordPosix
+                == Time.toYear zone currentPosix
+                && Time.toMonth zone recordPosix
+                == Time.toMonth zone currentPosix
+                && Time.toDay zone recordPosix
+                == Time.toDay zone currentPosix
+    in
+    history
+        |> List.filter isSameDate
+        |> aggregateSessions
+
 viewAggregateStats : String -> AggregateStats -> Html msg
 viewAggregateStats title agg =
     let
@@ -73,7 +122,7 @@ viewAggregateStats title agg =
                 [ Html.span [ class "text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase mb-1" ] [ Html.text label ]
                 , Html.div [ class "flex items-baseline gap-2 mt-1" ]
                     [ Html.span [ class "text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100" ] [ Html.text val ]
-                    , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-500" ] [ Html.text sub ]
+                    , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-400" ] [ Html.text sub ]
                     ]
                 ]
     in
@@ -95,30 +144,8 @@ viewStats data onHover onHoverMastery onClickStartPractice =
             ]
         , Html.div [ class "flex flex-col md:flex-row gap-8 w-full" ]
             [ viewAggregateStats "All Time Statistics" data.aggregate
-            , viewAggregateStats "Statistics for Today" 
-                (let
-                    currentPosix = Time.millisToPosix (round data.currentTime)
-                    cY = Time.toYear data.zone currentPosix
-                    cM = Time.toMonth data.zone currentPosix
-                    cD = Time.toDay data.zone currentPosix
-                    
-                    isToday r =
-                        let
-                            rPosix = Time.millisToPosix (round r.timestamp)
-                        in
-                        Time.toYear data.zone rPosix == cY && Time.toMonth data.zone rPosix == cM && Time.toDay data.zone rPosix == cD
-
-                    filteredHistory = List.filter isToday data.history
-                 in
-                 List.foldl (\r acc -> 
-                    { totalDuration = acc.totalDuration + r.duration
-                    , totalSessions = acc.totalSessions + 1
-                    , topWpm = max acc.topWpm r.wpm
-                    , topAccuracy = max acc.topAccuracy r.accuracy
-                    , sumWpm = acc.sumWpm + r.wpm
-                    , sumAccuracy = acc.sumAccuracy + r.accuracy
-                    }
-                 ) { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 } filteredHistory)
+            , viewAggregateStats "Statistics for Today"
+                (aggregateForDate data.zone data.currentTime data.history)
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
             [ Html.div [ class "flex flex-col md:flex-row justify-between md:items-end gap-4 mb-4" ]
@@ -137,7 +164,7 @@ viewStats data onHover onHoverMastery onClickStartPractice =
                         ]
                     ]
                 ]
-            , Html.div [ class "flex-1 w-full" ]
+            , Html.div [ class "flex-1 w-full", Html.Attributes.attribute "role" "img", Html.Attributes.attribute "aria-label" "Timeline chart of typing speed and accuracy" ]
                 [ viewTimelineChart data onHover ]
             ]
         , Html.div [ class "w-full bg-white dark:bg-stone-800/80 rounded-xl shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none border border-stone-200 dark:border-stone-700 p-8 h-[400px] flex flex-col" ]
@@ -145,7 +172,7 @@ viewStats data onHover onHoverMastery onClickStartPractice =
                 [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text "Slowest Characters" ]
                 , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text "The average delay (in milliseconds) before you successfully type these characters. Taller bars indicate you are struggling to find them quickly." ]
                 ]
-            , Html.div [ class "flex-1 w-full" ]
+            , Html.div [ class "flex-1 w-full", Html.Attributes.attribute "role" "img", Html.Attributes.attribute "aria-label" "Bar chart of slowest typed characters" ]
                 [ viewMasteryChart data onHoverMastery ]
             , if (List.length data.history) >= 5 then
                 Html.div [ class "mt-8 flex justify-center w-full" ]
@@ -216,7 +243,7 @@ viewTimelineChart data onHover =
             List.indexedMap (\i r -> { index = toFloat i, record = r }) data.history
     in
     if List.isEmpty history then
-        Html.div [ class "flex items-center justify-center h-full text-stone-500" ] [ Html.text "Complete a lesson to see your timeline." ]
+        Html.div [ class "flex items-center justify-center h-full text-stone-500 dark:text-stone-400" ] [ Html.text "Complete a lesson to see your timeline." ]
     else
         C.chart
             [ CA.height 300
@@ -271,7 +298,7 @@ viewMasteryChart data onHoverMastery =
                 |> List.indexedMap (\i (letter, stat) -> { index = toFloat i, letter = letter, stat = stat })
     in
     if List.isEmpty stats then
-        Html.div [ class "flex items-center justify-center h-full text-stone-500" ] [ Html.text "No data available." ]
+        Html.div [ class "flex items-center justify-center h-full text-stone-500 dark:text-stone-400" ] [ Html.text "No data available." ]
     else
         C.chart
             [ CA.height 300

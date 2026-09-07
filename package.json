@@ -6,20 +6,27 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build:e2e": "tsc && vite build --mode test",
+    "preview": "vite preview",
+    "test": "npm run test:elm && npm run test:ts",
+    "test:elm": "elm-test",
+    "test:ts": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "check": "npm run test:elm && npm run test:coverage && npm run build"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@types/canvas-confetti": "^1.9.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "elm-test": "^0.19.1-revision12",
+    "jsdom": "^30.0.1",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-elm": "^3.0.1",
     "vite-plugin-pwa": "^1.3.0",
-    "workbox-core": "^7.4.1",
-    "workbox-precaching": "^7.4.1",
-    "workbox-routing": "^7.4.1",
-    "workbox-strategies": "^7.4.1",
-    "workbox-window": "^7.4.1"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

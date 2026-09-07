@@ -54,7 +54,7 @@ suite =
                     in
                     String.isEmpty result
                         |> Expect.equal False
-            , test "level is clamped to at most 33" <|
+            , test "level is clamped to the final lesson" <|
                 \_ ->
                     let
                         result =
@@ -72,6 +72,21 @@ suite =
                     in
                     (String.length result > 0)
                         |> Expect.equal True
+            , test "the final lesson uses the final lesson's word list" <|
+                \_ ->
+                    let
+                        result =
+                            Random.step (Dictation.genForLevel Dictation.lessonCount) (Random.initialSeed 42)
+                                |> Tuple.first
+
+                        finalWords =
+                            Dict.get Dictation.lessonCount Words.byLesson
+                                |> Maybe.withDefault []
+                    in
+                    result
+                        |> String.words
+                        |> List.all (\word -> List.member word finalWords)
+                        |> Expect.equal True
             , test "generated string contains spaces (multiple words)" <|
                 \_ ->
                     let
@@ -81,9 +96,9 @@ suite =
                     in
                     String.contains " " result
                         |> Expect.equal True
-            , test "every lesson level 1..33 produces non-empty output" <|
+            , test "every lesson produces non-empty output" <|
                 \_ ->
-                    List.range 1 33
+                    List.range 1 Dictation.lessonCount
                         |> List.all
                             (\lvl ->
                                 let
@@ -96,9 +111,9 @@ suite =
                         |> Expect.equal True
             ]
         , describe "Words.byLesson coverage"
-            [ test "every level 1..33 has words in Words.byLesson" <|
+            [ test "every lesson has words in Words.byLesson" <|
                 \_ ->
-                    List.range 1 33
+                    List.range 1 Dictation.lessonCount
                         |> List.all
                             (\lvl ->
                                 case Dict.get lvl Words.byLesson of
@@ -109,6 +124,53 @@ suite =
                                         False
                             )
                         |> Expect.equal True
+            ]
+        , describe "genForWeaknesses"
+            [ test "every generated word targets an available weak character" <|
+                \_ ->
+                    let
+                        result =
+                            Random.step
+                                (Dictation.genForWeaknesses [ "ረ" ] 5)
+                                (Random.initialSeed 17)
+                                |> Tuple.first
+
+                        availableWords =
+                            Dict.toList Words.byLesson
+                                |> List.filter (\( level, _ ) -> level <= 5)
+                                |> List.concatMap Tuple.second
+                                |> List.filter (String.contains "ረ")
+                    in
+                    result
+                        |> String.words
+                        |> List.all (\word -> List.member word availableWords)
+                        |> Expect.equal True
+            , test "an empty weakness list falls back to unlocked lesson words" <|
+                \_ ->
+                    let
+                        result =
+                            Random.step
+                                (Dictation.genForWeaknesses [] 4)
+                                (Random.initialSeed 21)
+                                |> Tuple.first
+
+                        availableWords =
+                            Dict.toList Words.byLesson
+                                |> List.filter (\( level, _ ) -> level <= 4)
+                                |> List.concatMap Tuple.second
+                    in
+                    result
+                        |> String.words
+                        |> List.all (\word -> List.member word availableWords)
+                        |> Expect.equal True
+            , test "weakness generation clamps access at the final lesson" <|
+                \_ ->
+                    Random.step
+                        (Dictation.genForWeaknesses [ "ቨ" ] 999)
+                        (Random.initialSeed 42)
+                        |> Tuple.first
+                        |> String.isEmpty
+                        |> Expect.equal False
             ]
         ]
 

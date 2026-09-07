@@ -13,21 +13,6 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,ttf,woff,woff2}'],
         navigateFallback: '/index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/firestore\.googleapis\.com\/v1\/projects\/qelm-analytics\/databases\/\(default\)\/documents\/sessions/,
-            method: 'POST',
-            handler: 'NetworkOnly',
-            options: {
-              backgroundSync: {
-                name: 'analytics-queue',
-                options: {
-                  maxRetentionTime: 24 * 60 // Retry for up to 24 hours
-                }
-              }
-            }
-          }
-        ]
       },
       manifest: {
         name: 'Qelm',

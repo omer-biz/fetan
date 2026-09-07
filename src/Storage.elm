@@ -4,7 +4,7 @@ import Dict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Types.Core exposing (..)
-import Stats exposing (LetterStat, SessionRecord, AggregateStats)
+import Stats exposing (AggregateStats, LetterStat, SessionRecord, aggregateSessions)
 
 keyDecoder : Decode.Decoder KeyEvent
 keyDecoder =
@@ -115,27 +115,24 @@ infoDecoder =
                             
                     aggregate =
                         Decode.decodeValue (Decode.field "aggregate" aggregateDecoder) val
-                            |> Result.withDefault
-                                (List.foldl
-                                    (\r acc ->
-                                        { totalDuration = acc.totalDuration + r.duration
-                                        , totalSessions = acc.totalSessions + 1
-                                        , topWpm = max acc.topWpm r.wpm
-                                        , topAccuracy = max acc.topAccuracy r.accuracy
-                                        , sumWpm = acc.sumWpm + r.wpm
-                                        , sumAccuracy = acc.sumAccuracy + r.accuracy
-                                        }
-                                    )
-                                    { totalDuration = 0, totalSessions = 0, topWpm = 0, topAccuracy = 0, sumWpm = 0, sumAccuracy = 0 }
-                                    history
-                                )
+                            |> Result.withDefault (aggregateSessions history)
 
                     onboardingStep =
                         Decode.decodeValue (Decode.field "onboardingStep" Decode.int) val
                             |> Result.withDefault 0
+                            |> normalizeOnboardingStep
                 in
                 Decode.succeed (Info metrics layoutKind history migratedLayouts aggregate onboardingStep)
             )
+
+
+normalizeOnboardingStep : Int -> Int
+normalizeOnboardingStep step =
+    if step == 2 then
+        3
+
+    else
+        clamp 0 8 step
 
 
 encodeMetric : { old : Int, new : Int } -> Encode.Value
@@ -202,5 +199,3 @@ encodeInfo info =
         , ( "aggregate", encodeAggregate info.aggregate )
         , ( "onboardingStep", Encode.int info.onboardingStep )
         ]
-
-

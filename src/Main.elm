@@ -1,17 +1,16 @@
 module Main exposing (main)
 
 import Browser
-import Browser.Events exposing (onKeyDown, onKeyUp)
 import Browser.Navigation as Nav
 import Community
 import Dict exposing (Dict)
 import Dictation as DictGen
 import Json.Decode as Decode
 import Json.Encode as Encode
-import Models.Layout as Layout exposing (Layout(..))
+import Models.Layout as Layout
 import Ports
 import Random
-import Stats exposing (LetterStat, SessionRecord)
+import Routing exposing (Route(..), routeFromUrl)
 import Time
 import Types.KeyModifier exposing (KeyModifier(..))
 import Types.Core exposing (..)
@@ -21,7 +20,7 @@ import Url exposing (Url)
 
 import Storage
 import DictationLogic exposing (..)
-import Update exposing (update, modifierKeys)
+import Update exposing (update)
 import View exposing (view)
 
 
@@ -72,6 +71,14 @@ init flags url navKey =
                 Err _ ->
                     0
 
+        timeOrigin =
+            case Decode.decodeValue (Decode.field "timeOrigin" Decode.float) flags of
+                Ok t ->
+                    t
+
+                Err _ ->
+                    nowTime
+
         themeStr =
             case Decode.decodeValue (Decode.field "theme" Decode.string) flags of
                 Ok "light" ->
@@ -80,12 +87,23 @@ init flags url navKey =
                 _ ->
                     Dark
 
+        analyticsConsent =
+            Decode.decodeValue (Decode.field "analyticsConsent" Decode.bool) flags
+                |> Result.withDefault False
+
+        initialDictation =
+            Decode.decodeValue (Decode.field "initialDictation" Decode.string) flags
+                |> Result.toMaybe
+
         model =
             { keyboard = keyboard
-            , dictation = stringToDictation ""
+            , dictation =
+                initialDictation
+                    |> Maybe.map stringToDictation
+                    |> Maybe.withDefault (stringToDictation "")
             , info = info
             , time = 0
-            , timeOrigin = nowTime
+            , timeOrigin = timeOrigin
             , zone = Time.utc
             , sessionStartTime = 0
             , currentTime = nowTime
@@ -103,14 +121,20 @@ init flags url navKey =
             , hoveringMastery = []
             , communityData = Community.init
             , justLeveledUp = False
+            , analyticsConsent = analyticsConsent
             }
 
-        dictation =
+        generatedDictation =
             DictGen.genForLevel (getCurrentLayoutData info).lessonIdx
     in
     ( model
     , Cmd.batch
-        [ Random.generate NewDict dictation
+        [ case initialDictation of
+            Just _ ->
+                Cmd.none
+
+            Nothing ->
+                Random.generate NewDict generatedDictation
         , Task.perform GotTimeZone Time.here
         , if model.route == CommunityRoute then
             Ports.fetchCommunityStats ()
@@ -155,22 +179,6 @@ subscriptions model =
     else
         Sub.batch [ kbSubs, Ports.receiveCommunityStats GotCommunityStats ]
 
-
-dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
-dispatchHelper modMsg regularMsg key =
-    if List.member key.code modifierKeys then
-        modMsg key.code
-
-    else
-        regularMsg key
-
-dispatchDown : KeyEvent -> Msg
-dispatchDown =
-    dispatchHelper ModKeyDown KeyDown
-
-dispatchUp : KeyEvent -> Msg
-dispatchUp =
-    dispatchHelper ModKeyUp KeyUp
 
 layoutKindFromString : String -> Layout.LayoutKind
 layoutKindFromString str =

@@ -18,20 +18,28 @@ urlBase =
 suite : Test
 suite =
     describe "Routing"
-        [ test "Empty fragment goes to Home" <|
+        [ test "Empty fragment goes to typing" <|
             \_ ->
                 routeFromUrl { urlBase | fragment = Just "" }
-                    |> Expect.equal Home
-        , test "Nothing fragment goes to Home" <|
+                    |> Expect.equal TypingRoute
+        , test "Nothing fragment goes to typing" <|
             \_ ->
                 routeFromUrl { urlBase | fragment = Nothing }
-                    |> Expect.equal Home
+                    |> Expect.equal TypingRoute
         , test "Stats fragment goes to Stats" <|
             \_ ->
                 routeFromUrl { urlBase | fragment = Just "stats" }
-                    |> Expect.equal Stats
-        , test "Unknown fragment goes to NotFound" <|
+                    |> Expect.equal StatsRoute
+        , test "Practice fragment goes to practice" <|
+            \_ ->
+                routeFromUrl { urlBase | fragment = Just "practice" }
+                    |> Expect.equal PracticeRoute
+        , test "Community fragment goes to community" <|
+            \_ ->
+                routeFromUrl { urlBase | fragment = Just "community" }
+                    |> Expect.equal CommunityRoute
+        , test "Unknown fragment goes to typing" <|
             \_ ->
                 routeFromUrl { urlBase | fragment = Just "foo" }
-                    |> Expect.equal NotFound
+                    |> Expect.equal TypingRoute
         ]

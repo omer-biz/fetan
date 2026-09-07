@@ -1,11 +1,6 @@
-module View exposing (view)
+module View exposing (dispatchDown, dispatchUp, view)
 
 import Browser
-import Browser.Events exposing (onKeyDown, onKeyUp)
-import Chart as C
-import Chart.Attributes as CA
-import Chart.Events as CE
-import Chart.Item as CI
 import Community
 import Dict exposing (Dict)
 import Dictation as DictGen
@@ -15,16 +10,13 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Html.Keyed as Keyed
 import Json.Decode as Decode
-import Models.Layout as Layout exposing (Layout(..))
-import Ports
+import Models.Layout as Layout
 import Routing exposing (Route(..))
-import Stats exposing (LetterStat, SessionRecord)
+import Stats
 import Storage
 import Svg exposing (path, svg)
 import Svg.Attributes as SvgAttr
-import Time
 import Types.Core exposing (..)
-import Types.KeyAttempt exposing (KeyAttempt(..))
 import Types.KeyModifier exposing (KeyModifier(..))
 import Types.Msg exposing (..)
 
@@ -62,10 +54,19 @@ viewThemeToggle theme =
 
             else
                 moonIcon
+
+        buttonLabel =
+            if theme == Dark then
+                "Switch to light theme"
+
+            else
+                "Switch to dark theme"
     in
     Html.button
         [ Html.Events.onClick ToggleTheme
         , Html.Attributes.id "theme-toggle"
+        , Html.Attributes.attribute "aria-label" buttonLabel
+        , Html.Attributes.title buttonLabel
         , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
         ]
         [ icon ]
@@ -147,15 +148,29 @@ viewHeader : Model -> Html Msg
 viewHeader model =
     Html.header [ class "relative z-10 w-full flex justify-between items-center mb-8" ]
         [ div [ class "flex flex-col" ]
-            [ span [ class "text-xl font-medium tracking-[0.2em] text-slate-700 dark:text-slate-300 lowercase" ] [ text "qelm" ]
-            , span [ class "text-[10px] text-stone-400 dark:text-stone-500 tracking-widest uppercase" ] [ text "Amharic Typing Practice" ]
+            [ h1 [ class "text-xl font-medium tracking-[0.2em] text-slate-700 dark:text-slate-300 lowercase" ] [ text "qelm" ]
+            , span [ class "text-[10px] text-stone-400 dark:text-stone-400 tracking-widest uppercase" ] [ text "Amharic Typing Practice" ]
             ]
         , div [ class "flex items-center gap-4 md:gap-6" ]
             [ viewLayoutSelector model.layoutKind
+            , if model.route == CommunityRoute then
+                label [ class "flex items-center gap-2 text-xs text-stone-500 dark:text-stone-400 cursor-pointer" ]
+                    [ input
+                        [ type_ "checkbox"
+                        , checked model.analyticsConsent
+                        , onCheck ToggleAnalyticsConsent
+                        , class "accent-slate-600"
+                        ]
+                        []
+                    , span [] [ text "Share anonymous stats" ]
+                    ]
+
+              else
+                text ""
             , if model.route == StatsRoute || model.route == CommunityRoute then
                 Html.button
                     [ Html.Events.onClick (GoTo TypingRoute)
-                    , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center text-sm font-medium gap-1"
+                    , class "text-stone-600 dark:text-stone-300 hover:text-stone-800 dark:hover:text-stone-100 transition-colors flex items-center text-sm font-medium gap-1"
                     ]
                     [ text "Back" ]
 
@@ -164,21 +179,24 @@ viewHeader model =
                     [ if List.length model.info.history >= 5 then
                         Html.button
                             [ Html.Events.onClick StartPracticeMode
+                            , Html.Attributes.attribute "aria-label" "Practice weaknesses"
                             , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center group relative"
                             ]
                             [ practiceIcon
-                            , Html.span [ class "absolute -bottom-8 right-0 bg-stone-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity" ] [ text "Practice Weaknesses" ]
+                            , Html.span [ class "absolute -bottom-8 right-0 bg-stone-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 whitespace-nowrap pointer-events-none transition-opacity" ] [ text "Practice Weaknesses" ]
                             ]
 
                       else
                         text ""
                     , Html.button
                         [ Html.Events.onClick (GoTo StatsRoute)
+                        , Html.Attributes.attribute "aria-label" "View performance statistics"
                         , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
                         ]
                         [ statsIcon ]
                     , Html.button
                         [ Html.Events.onClick (GoTo CommunityRoute)
+                        , Html.Attributes.attribute "aria-label" "View community dashboard"
                         , class "text-stone-600 dark:text-stone-400 opacity-70 hover:opacity-100 transition-opacity flex items-center"
                         ]
                         [ communityIcon ]
@@ -193,7 +211,15 @@ view model =
     { title = "qelm"
     , body =
         [ main_ [ class "bg-stone-200 dark:bg-[#282828] text-stone-800 dark:text-stone-200 flex flex-col items-center min-h-screen relative px-4 sm:px-8 py-6 w-full" ]
-            [ div [ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
+            [ div
+                ([ class "w-full max-w-[1000px] flex flex-col items-center flex-1" ]
+                    ++ (if model.info.onboardingStep == 0 then
+                            [ Html.Attributes.attribute "inert" "" ]
+
+                        else
+                            []
+                       )
+                )
                 [ viewHeader model
                 , if model.route == StatsRoute then
                     Stats.viewStats { history = model.info.history, letterStats = (getCurrentLayoutData model.info).letterStats, hoveringStats = model.hoveringStats, hoveringMastery = model.hoveringMastery, currentTime = model.currentTime, zone = model.zone, aggregate = model.info.aggregate } OnHoverStats OnHoverMastery StartPracticeMode
@@ -214,21 +240,22 @@ view model =
                             ]
                         , viewKeyBoard model.keyboard model.info.onboardingStep
                         ]
-                , if model.info.onboardingStep == 0 then
-                    viewOnboardingOverlay
-
-                  else
-                    text ""
-                ]
-            , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
-                [ text "an open-source project | made by "
-                , a
-                    [ href "https://github.com/omer-biz/qelm"
-                    , target "_blank"
-                    , class "font-medium hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
+                , Html.footer [ class "absolute bottom-4 text-sm text-stone-500 dark:text-stone-400 flex gap-1" ]
+                    [ text "an open-source project | made by "
+                    , a
+                        [ href "https://github.com/omer-biz/qelm"
+                        , target "_blank"
+                        , rel "noopener noreferrer"
+                        , class "font-medium hover:text-slate-600 dark:hover:text-slate-400 transition-colors"
+                        ]
+                        [ text "omer" ]
                     ]
-                    [ text "omer" ]
                 ]
+            , if model.info.onboardingStep == 0 then
+                viewOnboardingOverlay
+
+              else
+                text ""
             ]
         ]
     }
@@ -270,7 +297,7 @@ viewLayoutSelector currentKind =
             layoutInfo currentKind
     in
     div [ class "flex items-center gap-2" ]
-        [ div [ class "relative group inline-block hover:text-gray-100 transition" ]
+        [ div [ class "relative group inline-block hover:text-gray-100 transition", tabindex 0 ]
             [ span
                 [ class "relative font-medium text-zinc-400 cursor-help hover:text-gray-100 transition pr-4" ]
                 [ text "Layout"
@@ -279,11 +306,12 @@ viewLayoutSelector currentKind =
                     [ text "ⓘ" ]
                 ]
             , span
-                [ class "absolute left-0 mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 px-4 py-3 bg-stone-100 dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-sm leading-relaxed border border-stone-300 dark:border-stone-700 shadow-xl rounded-sm md:block" ]
+                [ class "absolute left-0 mt-2 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-300 z-50 px-4 py-3 bg-stone-100 dark:bg-stone-900 text-stone-800 dark:text-stone-200 text-sm leading-relaxed border border-stone-300 dark:border-stone-700 shadow-xl rounded-sm md:block" ]
                 [ div [ class "mb-2" ] [ text description ]
                 , a
                     [ href url
                     , target "_blank"
+                    , rel "noopener noreferrer"
                     , class "text-emerald-400 hover:text-emerald-300 underline"
                     ]
                     [ text "View full layout table →" ]
@@ -291,6 +319,8 @@ viewLayoutSelector currentKind =
             ]
         , select
             [ onInput (layoutKindFromString >> SelectLayout)
+            , Html.Attributes.id "layout-selector"
+            , Html.Attributes.attribute "aria-label" "Keyboard layout"
             , class
                 "bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-sm border border-stone-300 dark:border-stone-700 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-500 hover:bg-stone-200 dark:hover:bg-stone-700 transition"
             ]
@@ -323,7 +353,7 @@ layoutInfo kind =
 
         Layout.PowerGeez ->
             ( "PowerGeez is a legacy Ethiopian typing system used in many older applications and publishing tools."
-            , "/layouts/powergeez"
+            , "/layouts/powergeez.png"
             )
 
         Layout.GeezIME ->
@@ -365,7 +395,7 @@ viewProgression : Int -> Bool -> Int -> Html Msg
 viewProgression idx justLeveledUp onboardingStep =
     let
         effIdx =
-            clamp 1 33 idx
+            clamp 1 DictGen.lessonCount idx
     in
     div [ class "flex flex-wrap gap-2 md:gap-3 justify-center items-baseline text-sm md:text-base select-none mt-2" ]
         (List.indexedMap
@@ -448,7 +478,7 @@ viewMetrics info dictationMode =
                     ]
                 , div [ class "flex items-baseline gap-1" ]
                     [ span [ class "text-2xl md:text-3xl font-light text-stone-800 dark:text-stone-100" ] [ text m ]
-                    , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-500 tracking-wide" ] [ text pst ]
+                    , span [ class "text-xs md:text-sm font-medium text-stone-400 dark:text-stone-400 tracking-wide" ] [ text pst ]
                     ]
                 ]
     in
@@ -544,6 +574,7 @@ viewDictation isFocused dict onboardingStep =
     Keyed.node "div"
         [ class "relative whitespace-pre-wrap mx-auto bg-white dark:bg-stone-900/40 border rounded-xl border-stone-200 dark:border-stone-800 p-4 sm:p-6 md:p-8 mb-6 md:mb-8 w-full text-2xl sm:text-3xl md:text-4xl font-normal leading-loose tracking-wide shadow-[0_2px_12px_rgb(0,0,0,0.04)] dark:shadow-none outline-none focus:outline-none"
         , Html.Attributes.id "dictation-area"
+        , Html.Attributes.attribute "aria-label" "Typing exercise"
         , onFocus FocusKeyBr
         , onBlur BlurKeyBr
         , tabindex 0
@@ -558,11 +589,20 @@ viewDictation isFocused dict onboardingStep =
 
 dispatchHelper : (String -> Msg) -> (KeyEvent -> Msg) -> KeyEvent -> Msg
 dispatchHelper modMsg regularMsg key =
-    if String.startsWith "Shift" key.code || String.startsWith "Alt" key.code || String.startsWith "Control" key.code || String.startsWith "Meta" key.code then
+    if isModifierCode key.code then
         modMsg key.code
 
     else
         regularMsg key
+
+
+isModifierCode : String -> Bool
+isModifierCode code =
+    code == "CapsLock"
+        || String.startsWith "Shift" code
+        || String.startsWith "Alt" code
+        || String.startsWith "Control" code
+        || String.startsWith "Meta" code
 
 
 dispatchDown : KeyEvent -> Msg
@@ -578,13 +618,29 @@ dispatchUp =
 onKeyDownPreventDefault : Html.Attribute Msg
 onKeyDownPreventDefault =
     preventDefaultOn "keydown" <|
-        Decode.map (\keyEvent -> ( dispatchDown keyEvent, True )) Storage.keyDecoder
+        Decode.map
+            (\keyEvent ->
+                if keyEvent.code == "Tab" then
+                    ( NoOp, False )
+
+                else
+                    ( dispatchDown keyEvent, True )
+            )
+            Storage.keyDecoder
 
 
 onKeyUpPreventDefault : Html.Attribute Msg
 onKeyUpPreventDefault =
     preventDefaultOn "keyup" <|
-        Decode.map (\keyEvent -> ( dispatchUp keyEvent, True )) Storage.keyDecoder
+        Decode.map
+            (\keyEvent ->
+                if keyEvent.code == "Tab" then
+                    ( NoOp, False )
+
+                else
+                    ( dispatchUp keyEvent, True )
+            )
+            Storage.keyDecoder
 
 
 viewKeyBoard : Keyboard -> Int -> Html Msg
@@ -800,7 +856,7 @@ viewKey modifier key onboardingStep =
                 |> Maybe.withDefault ""
     in
     div
-        [ class <| String.join " " [ "relative z-10 x-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
+        [ class <| String.join " " [ "relative z-10 px-4 py-2 text-center rounded-md shadow-[0_2px_6px_rgb(0,0,0,0.04)] dark:shadow-[0_2px_4px_rgb(0,0,0,0.2)] font-semibold w-12 transition-transform duration-75", bg, extraStyle ] ]
         [ if key.state == Hinted && onboardingStep == 3 then
             viewOnboardingTooltip 3 "bottom-full mb-3 left-1/2 -translate-x-1/2 w-max" "down"
 
@@ -908,15 +964,22 @@ onboardingText step =
 
 viewOnboardingOverlay : Html Msg
 viewOnboardingOverlay =
-    div [ class "fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm" ]
+    div
+        [ class "fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-sm"
+        , Html.Attributes.attribute "role" "dialog"
+        , Html.Attributes.attribute "aria-modal" "true"
+        , Html.Attributes.attribute "aria-labelledby" "onboarding-title"
+        , onEscape SkipOnboarding
+        ]
         [ div [ class "relative bg-white dark:bg-stone-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border border-stone-200 dark:border-stone-700 animate-tooltip-enter" ]
             [ button
                 [ onClick SkipOnboarding
+                , Html.Attributes.attribute "aria-label" "Skip onboarding"
                 , class "absolute top-4 right-4 text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 transition-colors p-1.5 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700/50"
                 , Html.Attributes.title "Skip onboarding"
                 ]
                 [ closeIcon ]
-            , h2 [ class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
+            , h2 [ Html.Attributes.id "onboarding-title", class "text-2xl font-bold text-stone-800 dark:text-stone-100 mb-2 text-center" ] [ text "Welcome to Qelm" ]
             , p [ class "text-stone-500 dark:text-stone-400 mb-8 text-center" ] [ text "Choose your typing layout to begin." ]
             , div [ class "space-y-4 mb-8" ]
                 [ viewLayoutOption Layout.GeezIME "GeezIME (Recommended)" "Type Latin sequences (like 'he', 'hu') to form Ethiopic characters." True
@@ -926,7 +989,7 @@ viewOnboardingOverlay =
             , div [ class "flex justify-center" ]
                 [ button
                     [ onClick SkipOnboarding
-                    , class "text-sm text-stone-400 hover:text-stone-600 dark:text-stone-500 dark:hover:text-stone-300 underline underline-offset-4"
+                    , class "text-sm text-stone-500 hover:text-stone-700 dark:text-stone-300 dark:hover:text-stone-100 underline underline-offset-4"
                     ]
                     [ text "I already know how to use Qelm (Skip Onboarding)" ]
                 ]
@@ -940,10 +1003,10 @@ viewLayoutOption kind title desc recommended =
         icon =
             case kind of
                 Layout.GeezIME ->
-                    Html.img [ Html.Attributes.src "/layouts/geezime.png", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
+                    Html.img [ Html.Attributes.src "/layouts/geezime.png", Html.Attributes.alt "GeezIME layout", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
 
                 Layout.PowerGeez ->
-                    Html.img [ Html.Attributes.src "/layouts/powergeez.png", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
+                    Html.img [ Html.Attributes.src "/layouts/powergeez.png", Html.Attributes.alt "PowerGeez layout", Html.Attributes.class "w-10 h-10 rounded shadow-sm object-cover flex-shrink-0" ] []
 
                 Layout.SilPowerG ->
                     Svg.svg [ SvgAttr.viewBox "0 0 40 40", SvgAttr.class "w-10 h-10 rounded shadow-sm flex-shrink-0" ]
@@ -953,6 +1016,7 @@ viewLayoutOption kind title desc recommended =
     in
     button
         [ onClick (CompleteLayoutSelection kind)
+        , autofocus recommended
         , class
             ("w-full text-left p-4 rounded-xl border transition-all duration-200 group flex items-start gap-4 "
                 ++ (if recommended then
@@ -982,3 +1046,18 @@ viewLayoutOption kind title desc recommended =
             , span [ class "text-sm text-stone-500 dark:text-stone-400" ] [ text desc ]
             ]
         ]
+
+
+onEscape : Msg -> Html.Attribute Msg
+onEscape message =
+    Html.Events.on "keydown"
+        (Decode.field "key" Decode.string
+            |> Decode.andThen
+                (\key ->
+                    if key == "Escape" then
+                        Decode.succeed message
+
+                    else
+                        Decode.fail "Not the Escape key"
+                )
+        )

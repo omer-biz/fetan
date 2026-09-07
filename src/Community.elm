@@ -1,4 +1,4 @@
-module Community exposing (Model, Msg(..), init, update, view, subscriptions, handleReceiveStats)
+module Community exposing (Model, Msg(..), Status(..), handleReceiveStats, init, subscriptions, update, view)
 
 import Html exposing (Html)
 import Html.Attributes exposing (class)
@@ -58,11 +58,25 @@ update msg model =
 
 handleReceiveStats : Decode.Value -> Model -> Model
 handleReceiveStats value model =
-    case Decode.decodeValue (Decode.list sessionDecoder) value of
-        Ok sessions ->
-            { model | status = Loaded sessions }
+    case Decode.decodeValue responseDecoder value of
+        Ok status ->
+            { model | status = status }
+
         Err err ->
             { model | status = Error (Decode.errorToString err) }
+
+
+responseDecoder : Decoder Status
+responseDecoder =
+    Decode.field "ok" Decode.bool
+        |> Decode.andThen
+            (\ok ->
+                if ok then
+                    Decode.map Loaded (Decode.field "sessions" (Decode.list sessionDecoder))
+
+                else
+                    Decode.map Error (Decode.field "error" Decode.string)
+            )
 
 sessionDecoder : Decoder CommunitySession
 sessionDecoder =
@@ -81,16 +95,18 @@ view model =
         [ Html.div [ class "flex items-center justify-between" ]
             [ Html.h1 [ class "text-3xl font-bold text-stone-800 dark:text-stone-200" ] [ Html.text "Community Dashboard" ]
             ]
+        , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 -mt-6" ]
+            [ Html.text "Community figures use anonymous completed-session data shared by users who opt in." ]
         , case model.status of
             Loading ->
-                Html.div [ class "flex items-center justify-center py-20 text-stone-500" ] [ Html.text "Loading community pulse..." ]
+                Html.div [ class "flex items-center justify-center py-20 text-stone-500 dark:text-stone-400" ] [ Html.text "Loading community pulse..." ]
             
             Error e ->
                 Html.div [ class "p-4 bg-red-100 text-red-700 rounded-lg" ] [ Html.text ("Failed to load data: " ++ e) ]
 
             Loaded sessions ->
                 if List.isEmpty sessions then
-                    Html.div [ class "flex items-center justify-center py-20 text-stone-500" ] [ Html.text "No community data available yet." ]
+                    Html.div [ class "flex items-center justify-center py-20 text-stone-500 dark:text-stone-400" ] [ Html.text "No community data available yet." ]
                 else
                     viewDashboard sessions model
         ]
@@ -150,7 +166,7 @@ statCard label val sub =
         [ Html.span [ class "text-xs font-bold tracking-wider text-slate-500 dark:text-slate-400 uppercase mb-1" ] [ Html.text label ]
         , Html.div [ class "flex items-baseline gap-2 mt-1" ]
             [ Html.span [ class "text-3xl font-black tracking-tight text-slate-800 dark:text-slate-100" ] [ Html.text val ]
-            , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-500" ] [ Html.text sub ]
+            , if String.isEmpty sub then Html.text "" else Html.span [ class "text-sm font-semibold text-slate-500 dark:text-slate-400" ] [ Html.text sub ]
             ]
         ]
 
@@ -161,7 +177,7 @@ viewBarChart title desc data hovering =
             [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text title ]
             , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text desc ]
             ]
-        , Html.div [ class "flex-1 w-full" ]
+        , Html.div [ class "flex-1 w-full", Html.Attributes.attribute "role" "img", Html.Attributes.attribute "aria-label" "Bar chart of community sessions by lesson" ]
             [ C.chart
                 [ CA.height 250
                 , CA.width 400
@@ -204,7 +220,7 @@ viewLetterChart title desc data hovering =
             [ Html.h2 [ class "text-lg font-semibold text-stone-800 dark:text-stone-200" ] [ Html.text title ]
             , Html.p [ class "text-sm text-stone-500 dark:text-stone-400 mt-1" ] [ Html.text desc ]
             ]
-        , Html.div [ class "flex-1 w-full" ]
+        , Html.div [ class "flex-1 w-full", Html.Attributes.attribute "role" "img", Html.Attributes.attribute "aria-label" "Bar chart of the community's slowest characters" ]
             [ C.chart
                 [ CA.height 250
                 , CA.width 400

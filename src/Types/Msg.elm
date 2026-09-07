@@ -5,6 +5,7 @@ import Chart.Item as CI
 import Community
 import Json.Encode as Encode
 import Models.Layout as Layout
+import Routing exposing (Route)
 import Stats exposing (LetterStat, SessionRecord)
 import Time
 import Types.Core exposing (..)
@@ -36,3 +37,4 @@ type Msg
     | DismissOnboarding
     | StartPracticeMode
     | StartLessonMode
+    | ToggleAnalyticsConsent Bool

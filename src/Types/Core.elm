@@ -4,12 +4,11 @@ import Browser.Navigation as Nav
 import Chart.Item as CI
 import Community
 import Dict exposing (Dict)
-import Models.Layout as Layout exposing (Layout(..))
+import Models.Layout as Layout exposing (Layout)
+import Routing exposing (Route)
 import Stats exposing (LetterStat, SessionRecord)
-import Types.KeyAttempt exposing (KeyAttempt(..))
 import Time
-import Types.KeyModifier exposing (KeyModifier(..))
-import Url exposing (Url)
+import Types.KeyModifier exposing (KeyModifier)
 
 type Theme
     = Light
@@ -44,30 +43,9 @@ type alias Model =
     , hoveringMastery : List (CI.One { index : Float, letter : String, stat : LetterStat } CI.Bar)
     , communityData : Community.Model
     , justLeveledUp : Bool
+    , analyticsConsent : Bool
     }
 
-
-
-
-type Route
-    = TypingRoute
-    | PracticeRoute
-    | StatsRoute
-    | CommunityRoute
-
-routeFromUrl : Url -> Route
-routeFromUrl url =
-    if url.fragment == Just "stats" then
-        StatsRoute
-
-    else if url.fragment == Just "community" then
-        CommunityRoute
-
-    else if url.fragment == Just "practice" then
-        PracticeRoute
-
-    else
-        TypingRoute
 
 
 
@@ -145,4 +123,3 @@ type alias KeyEvent =
     { code : String
     , timeStamp : Float
     }
-
