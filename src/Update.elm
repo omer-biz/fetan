@@ -64,6 +64,10 @@ update msg model =
                 infoAfterOnboarding =
                     if model.info.onboardingStep == 1 then
                         { info | onboardingStep = 2 }
+                    else if model.info.onboardingStep == 3 then
+                        { info | onboardingStep = 4 }
+                    else if model.info.onboardingStep == 5 then
+                        { info | onboardingStep = 6 }
                     else
                         model.info
 
@@ -90,7 +94,7 @@ update msg model =
                 , sessionStartTime = newSessionStartTime 
                 , info = infoAfterOnboarding
               }
-            , if model.info.onboardingStep == 1 then Ports.saveInfo (Storage.encodeInfo infoAfterOnboarding) else Cmd.none 
+            , if infoAfterOnboarding.onboardingStep /= model.info.onboardingStep then Ports.saveInfo (Storage.encodeInfo infoAfterOnboarding) else Cmd.none 
             )
 
         KeyUp keyEvent ->
@@ -285,8 +289,8 @@ update msg model =
                             if model.time /= 0 then
                                 if info.onboardingStep == 2 then
                                     3
-                                else if info.onboardingStep == 3 then
-                                    4
+                                else if info.onboardingStep == 4 then
+                                    5
                                 else
                                     info.onboardingStep
                             else
@@ -480,7 +484,7 @@ update msg model =
             
         SkipOnboarding ->
             let
-                newInfo = { info | onboardingStep = 4 }
+                newInfo = { info | onboardingStep = 6 }
             in
             ( { model | info = newInfo }, Ports.saveInfo (Storage.encodeInfo newInfo) )
 

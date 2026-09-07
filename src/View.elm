@@ -817,10 +817,10 @@ onboardingText step =
         1 ->
             "Type the Latin keys, and they'll transform into Amharic characters. Try it!"
 
-        2 ->
+        3 ->
             "Your progress — Each Amharic character family unlocks as your mastery improves. The highlighted character is your current lesson."
 
-        3 ->
+        5 ->
             "Track your improvement — Speed, accuracy, and mastery update after each lesson. Visit the Stats page for more details."
 
         _ ->
