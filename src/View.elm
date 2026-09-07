@@ -296,11 +296,11 @@ viewInfo info justLeveledUp =
     div [ class "flex flex-col items-center mb-8 w-full max-w-[800px] relative" ]
         [ div [ class "relative w-full" ] 
             [ viewMetrics info 
-            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
+            , if info.onboardingStep == 5 then viewOnboardingTooltip 5 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         , div [ class "mt-4 w-full flex justify-center relative" ]
             [ viewProgression (getCurrentLayoutData info).lessonIdx justLeveledUp
-            , if info.onboardingStep == 2 then viewOnboardingTooltip 2 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
+            , if info.onboardingStep == 3 then viewOnboardingTooltip 3 "top-full mt-2 left-1/2 -translate-x-1/2" "up" else text ""
             ]
         ]
 
